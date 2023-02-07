@@ -43,11 +43,13 @@ public:
 
     Gtk::TreeModelColumn<string> col_key,col_value;
     Glib::RefPtr<Gtk::ListStore> base_model,end_effector_model;
-    sigc::connection base_signal_changed,end_effector_signal_changed;
+    sigc::connection base_signal_changed,end_effector_signal_changed,rtt_signal_click;
 
     void parse(ActiveObject* active_obj)
     {
-        auto entry_kind = builder->get_widget<Gtk::Entry>("kind");
+        using namespace boost::filesystem;
+
+        auto entry_kind = builder->get_widget<Gtk::Label>("kind");
         auto dropdown_base = builder->get_widget<Gtk::ComboBox>("base");
         auto spin_x = builder->get_object<Gtk::SpinButton>("x");
         auto spin_y = builder->get_object<Gtk::SpinButton>("y");
@@ -55,10 +57,13 @@ public:
         auto spin_roll = builder->get_object<Gtk::SpinButton>("roll");
         auto spin_pitch = builder->get_object<Gtk::SpinButton>("pitch");
         auto spin_yaw = builder->get_object<Gtk::SpinButton>("yaw");
-        entry_kind->set_text(active_obj->kind);
+        auto row_end_effector = builder->get_widget<Gtk::ListBoxRow>("row_end_effector");
+        auto row_width = builder->get_widget<Gtk::ListBoxRow>("row_width");
+        auto row_height = builder->get_widget<Gtk::ListBoxRow>("row_height");
+        auto row_rtt = builder->get_widget<Gtk::ListBoxRow>("row_rtt");
+        for(auto lbr : vector<Gtk::ListBoxRow*>{ row_end_effector,row_width,row_height,row_rtt }) 
+            lbr->set_visible(false);
 
-        using namespace boost::filesystem;
-        
         base_signal_changed.disconnect();
 
         base_model->clear();
@@ -71,7 +76,7 @@ public:
             if(active_obj->base == e.path()) dropdown_base->set_active(row);
         }
 
-        base_signal_changed = dropdown_base->signal_changed().connect([=]() {
+        base_signal_changed = dropdown_base->signal_changed().connect([active_obj,dropdown_base,this]() {
             auto model = dropdown_base->get_model();
             auto row = dropdown_base->get_active();
             active_obj->set_base(row->get_value(col_value));
@@ -83,25 +88,27 @@ public:
         spin_roll->set_value(active_obj->roll);
         spin_pitch->set_value(active_obj->pitch);
         spin_yaw->set_value(active_obj->yaw);
+        entry_kind->set_text(active_obj->kind);
         
-        parseRobot(active_obj);
+        if(parseRobot(active_obj)) {
+            row_end_effector->set_visible();
+        } else if (parseCamera(active_obj)) {
+            row_width->set_visible();
+            row_height->set_visible();
+            row_rtt->set_visible();
+        } else {
+
+        }
     }
 
-    void parseRobot(ActiveObject* active_obj)
+    bool parseRobot(ActiveObject* active_obj)
     {
-        using namespace boost::filesystem;
-
-        auto dropdown_end_effector = builder->get_widget<Gtk::ComboBox>("end_effector");
-        
         auto robot = dynamic_cast<Robot*>(active_obj);
-        if(robot == nullptr) {
-            return;
-        }
-
+        if(robot == nullptr) return false;
         using namespace boost::filesystem;
-        
+        auto dropdown_end_effector = builder->get_widget<Gtk::ComboBox>("end_effector");
         end_effector_signal_changed.disconnect();
-
+        
         end_effector_model->clear();
         for (auto e : directory_iterator(path(robot->end_effector.c_str()).parent_path())) { 
             if(is_directory(e)) continue;
@@ -112,11 +119,56 @@ public:
             if(robot->end_effector == e.path()) dropdown_end_effector->set_active(row);
         }
 
-        end_effector_signal_changed = dropdown_end_effector->signal_changed().connect([=]() {
+        end_effector_signal_changed = dropdown_end_effector->signal_changed().connect([robot,dropdown_end_effector,this]() {
             auto model = dropdown_end_effector->get_model();
             auto row = dropdown_end_effector->get_active();
             robot->set_end_effector(row->get_value(col_value));
         });
+
+        return true;
+    }
+
+    bool parseCamera(ActiveObject* active_obj)
+    {
+        auto obj = dynamic_cast<Camera3D*>(active_obj);
+        if(obj == nullptr) return false;
+
+        using namespace boost::filesystem;
+        auto spin_width = builder->get_object<Gtk::SpinButton>("width");
+        auto spin_height = builder->get_object<Gtk::SpinButton>("height");
+        auto btn_rtt = builder->get_object<Gtk::Button>("rtt");
+        auto area_texture = builder->get_object<Gtk::DrawingArea>("texture");
+        spin_width->set_value(obj->viewport_size[0]);
+        spin_height->set_value(obj->viewport_size[1]);
+        
+        area_texture->set_draw_func([obj,area_texture](const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h) {
+            cout << "area_texture:" << area_w << ' ' << area_h << endl;
+            if(!area_h) {
+                auto aspect_ratio_viewport = 1. * obj->viewport_size[0] / obj->viewport_size[1];
+                area_h = area_w / aspect_ratio_viewport;
+                area_texture->set_content_height(area_h);
+            }
+
+            auto texture = obj->rtt();
+            if(texture.rgba_pixels == nullptr) return;
+
+            auto aspect_ratio = 1. * texture.width / texture.height;
+            auto aspect_ratio2 = 1. * area_w / area_h;
+            auto factor = 1.0;
+            if (aspect_ratio > aspect_ratio2) factor = 1. * area_w / texture.width;
+            else factor = 1. * area_h / texture.height;
+            cr->scale(factor,factor);
+    
+            auto img_x = (area_w / factor - texture.width) / 2;
+            auto img_y = (area_h / factor - texture.height) / 2;
+            
+            auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
+            Gdk::Cairo::set_source_pixbuf(cr, img, img_x, img_y);
+            cr->paint();
+        });
+
+        btn_rttbtn_rtt->signal_clicked().connect([area_texture](){area_texture->queue_draw();});
+        return true;
     }
 
     Glib::RefPtr<Gtk::Builder> builder;
@@ -194,16 +246,18 @@ public:
                     // 计算出鼠标位置相对于图片位置的坐标
                     double x,y; ev->get_position(x,y);
                     x -= 14,y -= get_titlebar()->get_height(); //补偿x,y值，这是gtk框架bug
+                    if(right_side_pannel->get_allocation().contains_point(x,y)) break;
+
                     auto x_norm = (x / area_zoom_factor - img_x) / img->get_width();
                     auto y_norm = (y / area_zoom_factor - img_y) / img->get_height();
                     auto hit = editor->ray(x_norm,y_norm);
                     
-                    if(!right_side_pannel->get_allocation().contains_point(x,y)) 
-                        right_side_pannel->set_visible(hit.id != -1);
+                    if(hit.id != -1) {
+                        auto active_obj = editor->select(hit.id);
+                        properties->parse(active_obj);
+                    }
 
-                    if(hit.id == -1) break;
-                    auto active_obj = editor->select(hit.id);
-                    properties->parse(active_obj);
+                    right_side_pannel->set_visible(hit.id != -1);
                 }
 
                 break;
@@ -243,8 +297,8 @@ public:
     }
 
     void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h) 
-    {        
-        Glib::signal_timeout().connect_once([=]() { area->queue_draw(); }, 1000 / 24);
+    {
+        Glib::signal_timeout().connect_once([this]() { area->queue_draw(); }, 1000 / 24);
         
         cr->set_source_rgb(40 / 255.,40 / 255.,40 / 255.);
         cr->paint();
@@ -299,7 +353,7 @@ int main(int argc, char* argv[])
     bindtextdomain("digitaltwin","po");
     textdomain("digitaltwin");
 
-    app->signal_activate().connect([=]() {
+    app->signal_activate().connect([app]() {
         auto builder = Gtk::Builder::create_from_file("../src/app.glade");
         app->add_window(*Gtk::Builder::get_widget_derived<AppWindow>(builder,"app_window"));
     });

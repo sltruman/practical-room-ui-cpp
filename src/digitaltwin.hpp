@@ -1,7 +1,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
-#include <set>
+#include <map>
 #include <list>
 using namespace std;
 
@@ -34,6 +34,7 @@ protected:
 friend class Editor;
 friend class ActiveObject;
 friend class Robot;
+friend class Camera3D;
 
 };
 
@@ -68,6 +69,10 @@ class Camera3D : public ActiveObject
 public:
     Camera3D(Scene* sp,string properties);
     virtual ~Camera3D() {}
+    const Texture rtt();
+
+    vector<unsigned char> rgba_pixels;
+    int viewport_size[2];
 };
 
 class Packer : public ActiveObject
@@ -75,7 +80,7 @@ class Packer : public ActiveObject
 public:
     Packer(Scene* sp,string properties);
     virtual ~Packer() {}
-
+    
 };
 
 struct RayInfo { int id; double pos[3];};
@@ -85,7 +90,6 @@ public:
     Editor(Scene* sp);
     RayInfo ray(double x,double y);
     void move(int id,double pos[3]);
-
     ActiveObject* select(int id);
 
 public:
@@ -94,7 +98,7 @@ public:
 protected:
     struct Plugin;
     Plugin* md;
-    set<ActiveObject*> active_objs;
+    map<int,ActiveObject*> active_objs;
 };
 
 

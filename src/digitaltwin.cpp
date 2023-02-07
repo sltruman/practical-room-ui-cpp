@@ -3,13 +3,13 @@
 #include <memory>
 using namespace std;
 
-
-namespace digitaltwin {
-
 #include <boost/json/src.hpp>
 #include <boost/asio.hpp>
 #include <boost/process.hpp>
 using namespace boost;
+
+namespace digitaltwin {
+
 
 struct Scene::Plugin {
     Plugin(): socket(io_context) {
@@ -47,9 +47,9 @@ void Scene::load(string scene_path) {
             md->backend->terminate();
             md->backend->wait();
         }
- 
-        md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->scene_width),to_string(md->scene_height));
-        md->backend->wait_for(chrono::seconds(4));
+
+        // md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->scene_width),to_string(md->scene_height));
+        // md->backend->wait_for(chrono::seconds(4));
         cout << "succeded" << endl;
 
         cout << "Connecting to digital-twin...";
@@ -168,19 +168,23 @@ ActiveObject* Editor::select(int id)
     auto properties = json::serialize(json_res);
 
     auto kind = json_res["kind"].as_string();
+    
     ActiveObject* obj = nullptr;
-
+    
     if(kind == "Robot") {
         obj = new Robot(scene, properties);
     } else if(kind == "Camera3D") {
-
+        obj = new Camera3D(scene, properties);
     } else if(kind == "Packer") {
-
+        // obj = new Packer(scene, properties);
     }
 
-    active_objs.insert(obj);
+    if(active_objs.contains(id))
+        *active_objs[id] = *obj;
+    else
+        active_objs[id] = obj;
 
-    return obj;
+    return active_objs[id];
 }
 
 ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
@@ -218,7 +222,7 @@ void ActiveObject::set_base(string path)
 Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties).as_object();
-    set_end_effector(json_properties["end_effector"].as_string().c_str());
+    end_effector = json_properties["end_effector"].as_string();
 }
 
 void Robot::set_end_effector(string path)
@@ -234,5 +238,27 @@ void Robot::set_end_effector(string path)
     istream i(&res); i >> end_effector_id;
 }
 
+Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
+{
+    auto json_properties = json::parse(properties).as_object();
+    auto vs = json_properties["viewport_size"].as_array();
+    viewport_size[0] = vs[0].as_int64();
+    viewport_size[1] = vs[1].as_int64();
+    rgba_pixels.resize(viewport_size[0]*viewport_size[1]*4);
+}
+
+const Texture Camera3D::rtt() {
+    stringstream req;
+    req << "scene.active_objs["<<id<<"].rtt()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+    asio::read(scene->md->socket,asio::buffer(rgba_pixels));
+    
+    Texture t;
+    t.width = viewport_size[0];
+    t.height = viewport_size[1];
+    t.rgba_pixels = rgba_pixels.data();
+    t.size = rgba_pixels.size();
+    return t;
+};
 
 }
