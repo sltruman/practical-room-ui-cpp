@@ -96,6 +96,10 @@ public:
             row_width->set_visible();
             row_height->set_visible();
             row_rtt->set_visible();
+        } else if (parsePacker(active_obj)) {
+            
+        } else if (parseStacker(active_obj)) {
+
         } else {
 
         }
@@ -129,6 +133,7 @@ public:
     }
 
     bool parseCamera(ActiveObject* active_obj)
+
     {
         auto obj = dynamic_cast<Camera3D*>(active_obj);
         if(obj == nullptr) return false;
@@ -137,37 +142,30 @@ public:
         auto spin_width = builder->get_object<Gtk::SpinButton>("width");
         auto spin_height = builder->get_object<Gtk::SpinButton>("height");
         auto btn_rtt = builder->get_object<Gtk::Button>("rtt");
-        auto area_texture = builder->get_object<Gtk::DrawingArea>("texture");
+        auto area_texture = builder->get_object<Gtk::Picture>("texture");
         spin_width->set_value(obj->viewport_size[0]);
         spin_height->set_value(obj->viewport_size[1]);
-        
-        area_texture->set_draw_func([obj,area_texture](const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h) {
-            cout << "area_texture:" << area_w << ' ' << area_h << endl;
-            if(!area_h) {
-                auto aspect_ratio_viewport = 1. * obj->viewport_size[0] / obj->viewport_size[1];
-                area_h = area_w / aspect_ratio_viewport;
-                area_texture->set_content_height(area_h);
-            }
 
-            auto texture = obj->rtt();
-            if(texture.rgba_pixels == nullptr) return;
-
-            auto aspect_ratio = 1. * texture.width / texture.height;
-            auto aspect_ratio2 = 1. * area_w / area_h;
-            auto factor = 1.0;
-            if (aspect_ratio > aspect_ratio2) factor = 1. * area_w / texture.width;
-            else factor = 1. * area_h / texture.height;
-            cr->scale(factor,factor);
-    
-            auto img_x = (area_w / factor - texture.width) / 2;
-            auto img_y = (area_h / factor - texture.height) / 2;
+        rtt_signal_click.disconnect();
+        rtt_signal_click =  btn_rtt->signal_clicked().connect([obj,area_texture](){
+            auto aspect_ratio_viewport = 1. * obj->viewport_size[0] / obj->viewport_size[1];
+            int area_w = area_texture->get_width();
+            int area_h = area_w / aspect_ratio_viewport;
             
+            auto texture = obj->rtt();
             auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
-            Gdk::Cairo::set_source_pixbuf(cr, img, img_x, img_y);
-            cr->paint();
+            area_texture->set_pixbuf(img);
+            area_texture->set_size_request(area_w,area_h);
         });
+        
+        return true;
+    }
 
-        btn_rttbtn_rtt->signal_clicked().connect([area_texture](){area_texture->queue_draw();});
+    bool parseStacker(ActiveObject* active_obj) {
+        return true;
+    }
+
+    bool parsePacker(ActiveObject* active_obj) {
         return true;
     }
 
@@ -190,6 +188,7 @@ public:
         area = builder->get_widget<Gtk::DrawingArea>("simulation");
         right_side_pannel = builder->get_widget<Gtk::ScrolledWindow>("right_side_pannel");
         properties = builder->get_widget_derived<ObjectProperties>(builder,"properties");
+        
     }
 
     ~AppWindow()

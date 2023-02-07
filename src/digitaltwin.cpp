@@ -19,7 +19,7 @@ struct Scene::Plugin {
     asio::io_context io_context;
     asio::local::stream_protocol::socket socket;
     
-    int scene_width,scene_height;
+    int viewport_size[2];
     vector<unsigned char> rgba_pixels;
     std::shared_ptr<process::child> backend;
 };
@@ -28,7 +28,7 @@ Scene::Scene(int width,int height,string scene_path)
 {
     md = new Plugin;
     md->rgba_pixels.resize(width * height * 4);
-    md->scene_height = height,md->scene_width = width;
+    md->viewport_size[1] = height,md->viewport_size[0] = width;
     load(scene_path);
 }
 
@@ -83,8 +83,8 @@ const Texture Scene::rtt() {
     asio::read(md->socket,asio::buffer(md->rgba_pixels));
     
     Texture t;
-    t.width = md->scene_width;
-    t.height = md->scene_height;
+    t.width = md->viewport_size[0];
+    t.height = md->viewport_size[1];
     t.rgba_pixels = md->rgba_pixels.data();
     t.size = md->rgba_pixels.size();
 
