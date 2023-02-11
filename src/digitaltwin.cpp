@@ -3,16 +3,19 @@
 #include <memory>
 using namespace std;
 
-#include <boost/json/src.hpp>
+#include "json.h"
 #include <boost/asio.hpp>
 #include <boost/process.hpp>
 using namespace boost;
+using json = nlohmann::json;
 
 namespace digitaltwin {
 
 
-struct Scene::Plugin {
-    Plugin(): socket(io_context) {
+struct Scene::Plugin 
+{
+    Plugin(): socket(io_context) 
+    {
 
     }
 
@@ -86,19 +89,19 @@ const Texture Scene::rtt() {
     t.width = md->viewport_size[0];
     t.height = md->viewport_size[1];
     t.rgba_pixels = md->rgba_pixels.data();
-    t.size = md->rgba_pixels.size();
-
     return t;
 }
 
-void Scene::start() {
+void Scene::start() 
+{
     stringstream req;
     req << "scene.start()" << endl;
     cout << req.str();
     asio::write(md->socket,  asio::buffer(req.str()));
 }
 
-void Scene::stop() {
+void Scene::stop() 
+{
     stringstream req;
     req << "scene.stop()" << endl;
     cout << req.str();
@@ -129,7 +132,8 @@ void Scene::zoom(double factor)
     asio::write(md->socket,  asio::buffer(req.str()));
 }
 
-Editor::Editor(Scene* sp) : scene(sp) {
+Editor::Editor(Scene* sp) : scene(sp) 
+{
 
 }
 
@@ -142,11 +146,11 @@ RayInfo Editor::ray(double x,double y)
 
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
-    cout << json::serialize(json_res) << endl;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
     
-    auto pos = json_res["pos"].as_array();
-    return RayInfo {(int)json_res["id"].as_int64(),{pos[0].as_double(),pos[1].as_double(),pos[2].as_double()}};
+    auto pos = json_res["pos"];
+    return RayInfo {(int)json_res["id"].get<long long>(),{pos[0].get<double>(),pos[1].get<double>(),pos[2].get<double>()}};
 }
 
 void Editor::move(int id,double pos[3])
@@ -163,11 +167,11 @@ ActiveObject* Editor::select(int id)
 
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
-    cout << json::serialize(json_res) << endl;
-    auto properties = json::serialize(json_res);
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
+    auto properties = json_res.dump();
 
-    auto kind = json_res["kind"].as_string();
+    auto kind = json_res["kind"].get<string>();
     
     ActiveObject* obj = nullptr;
     
@@ -189,20 +193,20 @@ ActiveObject* Editor::select(int id)
 
 ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
 {
-    auto json_properties = json::parse(properties).as_object();
+    auto json_properties = json::parse(properties);
 
-    kind = json_properties["kind"].as_string().c_str();
-    id = json_properties["id"].as_int64();
-    base = json_properties["base"].as_string().c_str();
-    auto pos = json_properties["pos"].as_array();
-    auto rpy = json_properties["rpy"].as_array();
+    kind = json_properties["kind"].get<string>().c_str();
+    id = json_properties["id"].get<long long>();
+    base = json_properties["base"].get<string>().c_str();
+    auto pos = json_properties["pos"];
+    auto rpy = json_properties["rpy"];
 
-    x = pos[0].as_double();
-    y = pos[1].as_double();
-    z = pos[2].as_double();
-    roll = rpy[0].as_double();
-    pitch = rpy[1].as_double();
-    yaw = rpy[2].as_double();
+    x = pos[0].get<double>();
+    y = pos[1].get<double>();
+    z = pos[2].get<double>();
+    roll = rpy[0].get<double>();
+    pitch = rpy[1].get<double>();
+    yaw = rpy[2].get<double>();
 }
 
 void ActiveObject::set_base(string path) 
@@ -221,8 +225,8 @@ void ActiveObject::set_base(string path)
 
 Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 {
-    auto json_properties = json::parse(properties).as_object();
-    end_effector = json_properties["end_effector"].as_string();
+    auto json_properties = json::parse(properties);
+    end_effector = json_properties["end_effector"].get<string>();
 }
 
 void Robot::set_end_effector(string path)
@@ -235,16 +239,22 @@ void Robot::set_end_effector(string path)
     asio::read_until(scene->md->socket, res,'\n');
     cout << res.data().data() << endl;
     end_effector = path;
+    
     istream i(&res); i >> end_effector_id;
 }
 
+
+
 Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
 {
-    auto json_properties = json::parse(properties).as_object();
-    auto vs = json_properties["viewport_size"].as_array();
-    viewport_size[0] = vs[0].as_int64();
-    viewport_size[1] = vs[1].as_int64();
-    rgba_pixels.resize(viewport_size[0]*viewport_size[1]*4);
+    auto json_properties = json::parse(properties);
+    auto vs = json_properties["image_size"];
+    image_size[0] = vs[0].get<long long>();
+    image_size[1] = vs[1].get<long long>();
+    rgba_pixels.resize(image_size[0]*image_size[1]*4);
+    depth_pixels.resize(image_size[0]*image_size[1]*3);
+    fov = json_properties["fov"].get<long long>();
+    forcal = json_properties["forcal"].get<double>();
 }
 
 const Texture Camera3D::rtt() {
@@ -252,12 +262,14 @@ const Texture Camera3D::rtt() {
     req << "scene.active_objs["<<id<<"].rtt()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
     asio::read(scene->md->socket,asio::buffer(rgba_pixels));
-    
+    asio::read(scene->md->socket,asio::buffer(depth_pixels));
+
     Texture t;
-    t.width = viewport_size[0];
-    t.height = viewport_size[1];
+    t.width = image_size[0];
+    t.height = image_size[1];
     t.rgba_pixels = rgba_pixels.data();
-    t.size = rgba_pixels.size();
+    t.depth_pixels = depth_pixels.data();
+
     return t;
 };
 

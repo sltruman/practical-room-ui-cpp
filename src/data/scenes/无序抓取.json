@@ -1,0 +1,36 @@
+{
+    "active_objects": [
+        {
+            "kind":"Robot",
+            "name":"robot",
+            "base":"./data/robots/ur5.urdf",
+            "pos":[0,0,0],
+            "rpy":[0,0,1.57],
+            "end_effector":"./data/end_effectors/magnet.urdf",
+            "end_effector_kind": "Gripper"
+        },
+        {
+            "kind":"Packer",
+            "name":"packer",
+            "base":"./data/workpieces/bin.urdf",
+            "pos":[-0.249507,-0.842426,0.05],
+            "rpy":[0,0,0],
+            "center":[0.0,-0.5,0.1],
+            "workpiece":"./data/workpieces/stuff.urdf"
+        }, 
+        {
+            "kind":"Camera3D",
+            "name":"camera",
+            "base":"./data/objects/camera3d.urdf",
+            "pos":[-0.492021,-0.593407,0.0],
+            "rpy":[0.0,0.0,-1.57],
+            "image_size": [300,300],
+            "fov": 45,
+            "forcal": 0.01
+        }
+    ],
+
+    "workflow": {
+        
+    }
+}

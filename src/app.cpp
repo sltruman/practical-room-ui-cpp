@@ -17,7 +17,6 @@ using namespace boost;
 #include "digitaltwin.hpp"
 using namespace digitaltwin;
 
-
 class ObjectProperties : public Gtk::ListBox 
 {
 public:
@@ -133,31 +132,38 @@ public:
     }
 
     bool parseCamera(ActiveObject* active_obj)
-
     {
         auto obj = dynamic_cast<Camera3D*>(active_obj);
         if(obj == nullptr) return false;
 
         using namespace boost::filesystem;
-        auto spin_width = builder->get_object<Gtk::SpinButton>("width");
-        auto spin_height = builder->get_object<Gtk::SpinButton>("height");
+        auto spin_width = builder->get_object<Gtk::SpinButton>("fov");
+        auto spin_height = builder->get_object<Gtk::SpinButton>("forcal");
         auto btn_rtt = builder->get_object<Gtk::Button>("rtt");
         auto area_texture = builder->get_object<Gtk::Picture>("texture");
-        spin_width->set_value(obj->viewport_size[0]);
-        spin_height->set_value(obj->viewport_size[1]);
+        auto area_texture2 = builder->get_object<Gtk::Picture>("texture_depth");
+        
+        spin_width->set_value(obj->fov);
+        spin_height->set_value(obj->forcal);
 
-        rtt_signal_click.disconnect();
-        rtt_signal_click =  btn_rtt->signal_clicked().connect([obj,area_texture](){
-            auto aspect_ratio_viewport = 1. * obj->viewport_size[0] / obj->viewport_size[1];
+        auto rtt = [obj,area_texture,area_texture2](){
+            auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
             int area_w = area_texture->get_width();
             int area_h = area_w / aspect_ratio_viewport;
             
             auto texture = obj->rtt();
             auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
             area_texture->set_pixbuf(img);
+
+            auto img2 = Gdk::Pixbuf::create_from_data(texture.depth_pixels,Gdk::Colorspace::RGB,false,8,texture.width,texture.height,texture.width*3);
+            area_texture2->set_pixbuf(img2);
+            
             area_texture->set_size_request(area_w,area_h);
-        });
-        
+            area_texture2->set_size_request(area_w,area_h);
+        };
+
+        rtt_signal_click.disconnect();
+        rtt_signal_click =  btn_rtt->signal_clicked().connect(rtt);
         return true;
     }
 

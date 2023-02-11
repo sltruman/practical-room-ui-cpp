@@ -11,7 +11,8 @@ namespace digitaltwin
 struct Texture
 {
     unsigned char* rgba_pixels;
-    int width, height, size;
+    unsigned char* depth_pixels;
+    int width, height;
 };
 
 class Scene
@@ -72,7 +73,9 @@ public:
     const Texture rtt();
 
     vector<unsigned char> rgba_pixels;
-    int viewport_size[2];
+    vector<unsigned char> depth_pixels;
+    int image_size[2],fov;
+    double forcal;
 };
 
 class Packer : public ActiveObject
@@ -91,6 +94,20 @@ public:
     RayInfo ray(double x,double y);
     void move(int id,double pos[3]);
     ActiveObject* select(int id);
+
+public:
+    Scene* scene;
+
+protected:
+    struct Plugin;
+    Plugin* md;
+    map<int,ActiveObject*> active_objs;
+};
+
+class Workflow
+{
+public:
+    Workflow(Scene* sp);
 
 public:
     Scene* scene;

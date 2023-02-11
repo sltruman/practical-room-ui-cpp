@@ -1,0 +1,35 @@
+{
+    "active_objects": [
+        {
+            "kind":"Robot",
+            "name":"robot",
+            "base":"./data/robots/ur5.urdf",
+            "pos":[0,0,0],
+            "rpy":[0,0,1.57],
+            "end_effector":"./data/end_effectors/magnet.urdf",
+            "end_effector_kind": "Gripper"
+        },
+        {
+            "kind":"Stacker",
+            "name":"stacker",
+            "base":"./data/workpieces/bin.urdf",
+            "pos":[-0.249507,-0.842426,0.001],
+            "rpy":[0,0,0],
+            "size":[0.5, 0.5, 0.1]
+        }, 
+        {
+            "kind":"Camera3D",
+            "name":"camera",
+            "base":"./data/objects/camera3d.urdf",
+            "pos":[-0.492021,-0.593407,0.0],
+            "rpy":[0.0,0.0,-1.57],
+            "image_size": [300,300],
+            "fov": 45,
+            "forcal": 0.01
+        }
+    ],
+
+    "workflow": {
+
+    }
+}
