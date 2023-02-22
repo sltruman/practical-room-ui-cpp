@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+src/digitaltwin
+src/resources.c
+src/app.glade~
+src/app

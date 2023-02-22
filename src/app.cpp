@@ -17,6 +17,15 @@ using namespace boost;
 #include "digitaltwin.hpp"
 using namespace digitaltwin;
 
+static const filesystem::path dir_data = "./data";
+static const filesystem::path dir_workpieces = "./data/workpieces";
+static const filesystem::path dir_end_effectors = "./data/end_effectors";
+static const filesystem::path dir_cameras = "./data/cameras";
+static const filesystem::path dir_objects = "./data/objects";
+static const filesystem::path dir_static_objects = "./data/static_objects";
+static const filesystem::path dir_robots = "./data/robots";
+static const filesystem::path dir_scenes = "./data/scenes";
+
 class ObjectProperties : public Gtk::ListBox 
 {
 public:
@@ -46,8 +55,6 @@ public:
 
     void parse(ActiveObject* active_obj)
     {
-        using namespace boost::filesystem;
-
         auto entry_kind = builder->get_widget<Gtk::Label>("kind");
         auto dropdown_base = builder->get_widget<Gtk::ComboBox>("base");
         auto spin_x = builder->get_object<Gtk::SpinButton>("x");
@@ -60,14 +67,39 @@ public:
         auto row_width = builder->get_widget<Gtk::ListBoxRow>("row_width");
         auto row_height = builder->get_widget<Gtk::ListBoxRow>("row_height");
         auto row_rtt = builder->get_widget<Gtk::ListBoxRow>("row_rtt");
-        for(auto lbr : vector<Gtk::ListBoxRow*>{ row_end_effector,row_width,row_height,row_rtt }) 
-            lbr->set_visible(false);
+        for(auto lbr : vector<Gtk::ListBoxRow*>{ row_end_effector,row_width,row_height,row_rtt }) lbr->set_visible(false);
 
+        spin_x->set_value(active_obj->x);
+        spin_y->set_value(active_obj->y);
+        spin_z->set_value(active_obj->z);
+        spin_roll->set_value(active_obj->roll);
+        spin_pitch->set_value(active_obj->pitch);
+        spin_yaw->set_value(active_obj->yaw);
+        entry_kind->set_text(active_obj->kind);
+        
         base_signal_changed.disconnect();
-
         base_model->clear();
-        for (auto e : directory_iterator(path(active_obj->base.c_str()).parent_path())) { 
-            if(is_directory(e)) continue;
+
+        auto dir_base = dir_objects;
+        if(parseRobot(active_obj)) {
+            
+            row_end_effector->set_visible();
+            dir_base = dir_robots;
+            
+        } else if (parseCamera(active_obj)) {
+            row_width->set_visible();
+            row_height->set_visible();
+            row_rtt->set_visible();
+            dir_base = dir_cameras;
+        } else if (parsePacker(active_obj)) {
+            
+        } else if (parseStacker(active_obj)) {
+
+        } 
+
+        for (auto e : filesystem::recursive_directory_iterator(dir_base)) { 
+            auto filename = e.path().filename().string();
+            if (string::npos == filename.find(".urdf")) continue;
             auto row = base_model->append();
             row->set_value(col_key, e.path().filename().string());
             row->set_value(col_value, e.path().string());
@@ -80,41 +112,20 @@ public:
             auto row = dropdown_base->get_active();
             active_obj->set_base(row->get_value(col_value));
         });
-
-        spin_x->set_value(active_obj->x);
-        spin_y->set_value(active_obj->y);
-        spin_z->set_value(active_obj->z);
-        spin_roll->set_value(active_obj->roll);
-        spin_pitch->set_value(active_obj->pitch);
-        spin_yaw->set_value(active_obj->yaw);
-        entry_kind->set_text(active_obj->kind);
-        
-        if(parseRobot(active_obj)) {
-            row_end_effector->set_visible();
-        } else if (parseCamera(active_obj)) {
-            row_width->set_visible();
-            row_height->set_visible();
-            row_rtt->set_visible();
-        } else if (parsePacker(active_obj)) {
-            
-        } else if (parseStacker(active_obj)) {
-
-        } else {
-
-        }
     }
 
     bool parseRobot(ActiveObject* active_obj)
     {
         auto robot = dynamic_cast<Robot*>(active_obj);
         if(robot == nullptr) return false;
-        using namespace boost::filesystem;
         auto dropdown_end_effector = builder->get_widget<Gtk::ComboBox>("end_effector");
         end_effector_signal_changed.disconnect();
         
         end_effector_model->clear();
-        for (auto e : directory_iterator(path(robot->end_effector.c_str()).parent_path())) { 
-            if(is_directory(e)) continue;
+
+        for (auto e : filesystem::recursive_directory_iterator(dir_end_effectors)) { 
+            auto filename = e.path().filename().string();
+            if (string::npos == filename.find(".urdf")) continue;
             auto row = end_effector_model->append();
             row->set_value(col_key, e.path().filename().string());
             row->set_value(col_value, e.path().string());
@@ -136,13 +147,11 @@ public:
         auto obj = dynamic_cast<Camera3D*>(active_obj);
         if(obj == nullptr) return false;
 
-        using namespace boost::filesystem;
         auto spin_width = builder->get_object<Gtk::SpinButton>("fov");
         auto spin_height = builder->get_object<Gtk::SpinButton>("forcal");
         auto btn_rtt = builder->get_object<Gtk::Button>("rtt");
         auto area_texture = builder->get_object<Gtk::Picture>("texture");
         auto area_texture2 = builder->get_object<Gtk::Picture>("texture_depth");
-        
         spin_width->set_value(obj->fov);
         spin_height->set_value(obj->forcal);
 
@@ -150,28 +159,41 @@ public:
             auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
             int area_w = area_texture->get_width();
             int area_h = area_w / aspect_ratio_viewport;
-            
             auto texture = obj->rtt();
             auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
             area_texture->set_pixbuf(img);
-
             auto img2 = Gdk::Pixbuf::create_from_data(texture.depth_pixels,Gdk::Colorspace::RGB,false,8,texture.width,texture.height,texture.width*3);
             area_texture2->set_pixbuf(img2);
-            
             area_texture->set_size_request(area_w,area_h);
             area_texture2->set_size_request(area_w,area_h);
         };
 
+        if(!area_texture->get_paintable()) {
+            Glib::signal_timeout().connect_once([area_texture,area_texture2,obj](){
+                auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
+                int area_w = area_texture->get_width();
+                int area_h = area_w / aspect_ratio_viewport;
+                auto img = Gdk::Pixbuf::create(Gdk::Colorspace::RGB, false, 8, obj->image_size[0],obj->image_size[1]);
+                
+                area_texture->set_pixbuf(img);
+                area_texture2->set_pixbuf(img);
+                area_texture->set_size_request(area_w,area_h);
+                area_texture2->set_size_request(area_w,area_h);
+            },100);
+        }
+        
         rtt_signal_click.disconnect();
-        rtt_signal_click =  btn_rtt->signal_clicked().connect(rtt);
+        rtt_signal_click = btn_rtt->signal_clicked().connect(rtt);
         return true;
     }
 
     bool parseStacker(ActiveObject* active_obj) {
+        
         return true;
     }
 
     bool parsePacker(ActiveObject* active_obj) {
+
         return true;
     }
 
@@ -199,6 +221,7 @@ public:
 
     ~AppWindow()
     {
+        delete workflow;
         delete editor;
         delete scene;
     }
@@ -223,6 +246,7 @@ public:
             
             scene = new Scene(800,640, scene_path);
             editor = new Editor(scene);
+            workflow = new Workflow(scene);
             area->set_draw_func(sigc::mem_fun(*this, &AppWindow::area_paint_event));
 
             auto controller = Gtk::EventControllerLegacy::create();
@@ -261,7 +285,6 @@ public:
                         auto active_obj = editor->select(hit.id);
                         properties->parse(active_obj);
                     }
-
                     right_side_pannel->set_visible(hit.id != -1);
                 }
 
@@ -330,12 +353,12 @@ public:
 
     void on_button_start_clicked()
     {
-        scene->start();
+        workflow->start();
     }
 
     void on_button_stop_clicked()
     {
-        scene->stop();
+        workflow->stop();
     }
 
     Glib::RefPtr<Gtk::Builder> builder;
@@ -348,6 +371,7 @@ public:
     
     digitaltwin::Scene* scene;
     digitaltwin::Editor* editor;
+    digitaltwin::Workflow* workflow;
 };
 
 int main(int argc, char* argv[])
@@ -359,7 +383,7 @@ int main(int argc, char* argv[])
     textdomain("digitaltwin");
 
     app->signal_activate().connect([app]() {
-        auto builder = Gtk::Builder::create_from_file("../src/app.glade");
+        auto builder = Gtk::Builder::create_from_resource("/app.glade");
         app->add_window(*Gtk::Builder::get_widget_derived<AppWindow>(builder,"app_window"));
     });
 

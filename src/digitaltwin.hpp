@@ -23,8 +23,7 @@ public:
     void load(string scene_path);
     void save();
     const Texture rtt();
-    void start();
-    void stop();
+    void play(bool run);
     void rotate(double x,double y);
     void pan(double x,double y);
     void zoom(double factor);
@@ -36,7 +35,7 @@ friend class Editor;
 friend class ActiveObject;
 friend class Robot;
 friend class Camera3D;
-
+friend class Workflow;
 };
 
 class ActiveObject
@@ -108,14 +107,14 @@ class Workflow
 {
 public:
     Workflow(Scene* sp);
+    string get_active_obj_nodes();
+    void set(string info);
+    string get();
+    void start();
+    void stop();
 
 public:
     Scene* scene;
-
-protected:
-    struct Plugin;
-    Plugin* md;
-    map<int,ActiveObject*> active_objs;
 };
 
 

@@ -10,8 +10,8 @@
             "end_effector_kind": "Gripper"
         },
         {
-            "kind":"Packer",
-            "name":"packer",
+            "kind":"Placer",
+            "name":"placer",
             "base":"./data/workpieces/bin.urdf",
             "pos":[-0.249507,-0.842426,0.05],
             "rpy":[0,0,0],
@@ -30,7 +30,11 @@
         }
     ],
 
-    "workflow": {
-        
+    "workflow":{
+        "run":"1",
+        "declare":{
+            "1":{"kind":"Packer","fun":"generate","name":"packer","next":"2"},
+            "2":{"kind":"Camera","fun":"capture","name":"camera"}
+        }
     }
 }

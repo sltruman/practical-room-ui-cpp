@@ -367,10 +367,14 @@
                               </object>
                             </child>
                             <child>
-                                <object class="GtkPicture" id="texture"></object>
+                                <object class="GtkPicture" id="texture">
+                                  <property name="content-fit">fill</property>
+                                </object>
                             </child>
                             <child>
-                              <object class="GtkPicture" id="texture_depth"></object>
+                              <object class="GtkPicture" id="texture_depth">
+                                <property name="content-fit">fill</property>
+                              </object>
                             </child>
                           </object>
                         </child>

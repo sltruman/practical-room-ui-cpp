@@ -14,10 +14,8 @@ namespace digitaltwin {
 
 struct Scene::Plugin 
 {
-    Plugin(): socket(io_context) 
-    {
-
-    }
+    Plugin(): socket(io_context)
+    {}
 
     asio::io_context io_context;
     asio::local::stream_protocol::socket socket;
@@ -51,14 +49,16 @@ void Scene::load(string scene_path) {
             md->backend->wait();
         }
 
-        // md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->scene_width),to_string(md->scene_height));
+        // md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->viewport_size[0]),to_string(md->viewport_size[1]),tmp_path);
         // md->backend->wait_for(chrono::seconds(4));
         cout << "succeded" << endl;
-
-        cout << "Connecting to digital-twin...";
-        auto socket_path = scene_path + ".sock";
         
-        md->socket.connect(asio::local::stream_protocol::endpoint(socket_path));
+        cout << "Connecting to digital-twin...";
+        
+        auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
+        auto socket_path = boost::filesystem::temp_directory_path().append("digitaltwin").append(socket_name);
+        
+        md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()));
         cout << "succeded" << endl;
 
         goto SUCCEDED;
@@ -92,18 +92,10 @@ const Texture Scene::rtt() {
     return t;
 }
 
-void Scene::start() 
+void Scene::play(bool run)
 {
     stringstream req;
-    req << "scene.start()" << endl;
-    cout << req.str();
-    asio::write(md->socket,  asio::buffer(req.str()));
-}
-
-void Scene::stop() 
-{
-    stringstream req;
-    req << "scene.stop()" << endl;
+    req << "scene.play(" << (run ? "True" : "False") << ")" << endl;
     cout << req.str();
     asio::write(md->socket,  asio::buffer(req.str()));
 }
@@ -180,7 +172,7 @@ ActiveObject* Editor::select(int id)
     } else if(kind == "Camera3D") {
         obj = new Camera3D(scene, properties);
     } else if(kind == "Packer") {
-        // obj = new Packer(scene, properties);
+        obj = new ActiveObject(scene, properties);
     }
 
     if(active_objs.contains(id))
@@ -199,14 +191,14 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
     id = json_properties["id"].get<long long>();
     base = json_properties["base"].get<string>().c_str();
     auto pos = json_properties["pos"];
-    auto rpy = json_properties["rpy"];
+    auto rot = json_properties["rot"];
 
     x = pos[0].get<double>();
     y = pos[1].get<double>();
     z = pos[2].get<double>();
-    roll = rpy[0].get<double>();
-    pitch = rpy[1].get<double>();
-    yaw = rpy[2].get<double>();
+    roll = rot[1].get<double>();
+    pitch = rot[0].get<double>();
+    yaw = rot[2].get<double>();
 }
 
 void ActiveObject::set_base(string path) 
@@ -243,8 +235,6 @@ void Robot::set_end_effector(string path)
     istream i(&res); i >> end_effector_id;
 }
 
-
-
 Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
@@ -272,5 +262,46 @@ const Texture Camera3D::rtt() {
 
     return t;
 };
+
+Workflow::Workflow(Scene* sp) : scene(sp)   {
+
+}
+
+string Workflow::get_active_obj_nodes() {
+    stringstream req;
+    req << "workflow.get_active_obj_nodes()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    return string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()));
+}
+
+void Workflow::set(string src) {
+    stringstream req;
+    req << "workflow.set('" << src << "')" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+string Workflow::get() {
+    stringstream req;
+    req << "workflow.get()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    return string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()));
+}
+
+
+void Workflow::start() {
+    stringstream req;
+    req << "workflow.start()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Workflow::stop() {
+    stringstream req;
+    req << "workflow.stop()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
 
 }
