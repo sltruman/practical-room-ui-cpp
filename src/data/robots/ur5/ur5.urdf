@@ -1,7 +1,6 @@
 <?xml version="1.0" ?>
 <!--FOR GRIPPER, THERE IS NO LINK INERTIA DEFINED HERE-->
-<robot name="universal_robot">
-
+<robot name="universal_robot" end_effector="ee_link">
   <link name="base_link">
     <visual>
       <geometry>
@@ -22,7 +21,6 @@
       <inertia ixx="0.00443333156" ixy="0.0" ixz="0.0" iyy="0.00443333156" iyz="0.0" izz="0.0072"/>
     </inertial>
   </link>
-
   <joint name="joint1" type="revolute">
     <parent link="base_link"/>
     <child link="shoulder_link"/>
@@ -196,7 +194,7 @@
     <child link="ee_link"/>
     <origin rpy="0.0 0.0 0.0" xyz="0.0 0.084 0.0"/>
   </joint>
-  <link name="ee_link">
+  <link name="ee_link" >
     <inertial>
       <origin rpy="1.57 0 0" xyz="0 0 0"/>
       <mass value=".001"/>
@@ -216,5 +214,4 @@
       </geometry>
     </collision>
   </link>
-
 </robot>

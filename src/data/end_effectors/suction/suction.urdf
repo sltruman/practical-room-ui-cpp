@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <!--FOR GRIPPER, THERE IS NO LINK INERTIA DEFINED HERE-->
-<robot name="universal_robot">
-  <link name="link_7">
+<robot name="universal_robot" kind="Suction">
+  <link name="ee_link">
     <visual>
       <geometry>
         <box size="0.01 0.01 0.01"/>
@@ -10,19 +10,14 @@
         <color rgba="0 1 0 0.5"/>
       </material>
     </visual>
-    <collision>
-      <geometry>
-        <box size="0.001 0.001 0.001"/>
-      </geometry>
-    </collision>
   </link>
-  <joint name="joint_7" type="fixed">
-    <parent link="link_7"/>
-    <child link="base_7"/>
+  <joint name="joint_placeholder" type="fixed">
+    <parent link="placeholder"/>
+    <child link="11"/>
     <origin rpy="0 0.0 0.0" xyz="0.0 0.054 0.0"/>
     <axis xyz="0 -1 0"/>
   </joint>
-  <link name="base_7">
+  <link name="11">
   	<inertial>
        <origin rpy="0 0 0" xyz="0 0 0"/>
        <mass value=".01"/>
@@ -39,13 +34,13 @@
       </geometry>
     </collision>
   </link>
-  <joint name="joint8" type="fixed">
-    <parent link="base_7"/>
-    <child link="link8"/>
+  <joint name="joint_ee" type="fixed">
+    <parent link="11"/>
+    <child link="ee"/>
     <origin rpy="0 0 0" xyz="0 0.07 0"/>
     <limit effort="20" lower="0.00" upper="0.01" velocity="0.2"/>
   </joint>
-  <link name="link8">
+  <link name="ee">
   	<inertial>
        <origin rpy="1.57 0 0" xyz="0 0 0"/>
        <mass value=".001"/>
