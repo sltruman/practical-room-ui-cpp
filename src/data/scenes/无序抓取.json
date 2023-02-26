@@ -3,29 +3,35 @@
         {
             "kind":"Robot",
             "name":"robot",
-            "base":"./data/robots/ur5.urdf",
+            "base":"./data/robots/ur5/ur5.urdf",
             "pos":[0,0,0],
-            "rpy":[0,0,1.57],
-            "end_effector":"./data/end_effectors/magnet.urdf",
-            "end_effector_kind": "Gripper"
+            "rot":[0,0,3.14],
+            "reset_joint_poses":[-1.57,0,0,0,1.57,0],
+            "joint_damping":[ 0, 1, 0.9, 0.8, 0.7, 0],
+            "end_effector":"./data/end_effectors/gripper/gripper.urdf",
+            "pick_pose":{
+                "pos":[0.0,0.0,0.025],"rot":[0,0,0]
+            }
         },
         {
             "kind":"Placer",
             "name":"placer",
-            "base":"./data/workpieces/bin.urdf",
-            "pos":[-0.249507,-0.842426,0.05],
-            "rpy":[0,0,0],
-            "center":[0.0,-0.5,0.1],
-            "workpiece":"./data/workpieces/stuff.urdf"
+            "base":"./data/objects/tray/traybox.urdf",
+            "pos":[0,-0.5,0.001],
+            "rot":[0,0,0],
+            "center":[0.0,-0.5,0.5],
+            "interval":0.1,
+            "amount":100,
+            "workpiece":"./data/workpieces/lego/lego.urdf"
         }, 
         {
             "kind":"Camera3D",
             "name":"camera",
-            "base":"./data/objects/camera3d.urdf",
-            "pos":[-0.492021,-0.593407,0.0],
-            "rpy":[0.0,0.0,-1.57],
-            "image_size": [300,300],
-            "fov": 45,
+            "base":"./data/cameras/camera3d.urdf",
+            "pos":[-0.5,-0.5,0.0],
+            "rot":[0.0,0.0,-1.57],
+            "image_size": [10,10],
+            "fov": 16,
             "forcal": 0.01
         }
     ],
@@ -33,8 +39,13 @@
     "workflow":{
         "run":"1",
         "declare":{
-            "1":{"kind":"Packer","fun":"generate","name":"packer","next":"2"},
-            "2":{"kind":"Camera","fun":"capture","name":"camera"}
+            "1":{"kind":"Placer","fun":"generate","name":"placer", "next":"2","args":{}},
+            "2":{
+                "kind":"Camera3D","fun":"pose_recognize","name":"camera","args":{},
+                "alt":[
+                    {"next":"7","err": "failed"}
+                ]
+            }
         }
     }
 }

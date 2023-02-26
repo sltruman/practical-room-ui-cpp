@@ -4,6 +4,22 @@
 <!-- |    EDITING THIS FILE BY HAND IS NOT RECOMMENDED                                 | -->
 <!-- =================================================================================== -->
 <robot name="robotiq_arg2f_85_model">
+  <link name="placeholder">
+    <visual>
+      <geometry>
+        <box size="0.01 0.01 0.01"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0 1 0 0.5"/>
+      </material>
+    </visual>
+  </link>
+  <joint name="joint_placeholder" type="fixed">
+    <parent link="placeholder"/>
+    <child link="robotiq_arg2f_base_link"/>
+    <origin rpy="-1.57 0.0 0.0" xyz="0.0 0.0 0.0"/>
+    <axis xyz="0 -1 0"/>
+  </joint>
   <link name="robotiq_arg2f_base_link">
     <inertial>
       <origin rpy="0 0 0" xyz="8.625E-08 -4.6583E-06 0.03145"/>
@@ -13,7 +29,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_base_link.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_base_link.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -22,7 +38,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_base_link.stl"/>
+        <mesh filename="collision/robotiq_arg2f_base_link.stl"/>
       </geometry>
     </collision>
   </link>
@@ -42,7 +58,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="">
         <color rgba="1 1 0 1"/>
@@ -51,7 +67,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -70,7 +86,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0 1 1 1.0"/>
@@ -79,7 +95,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -100,7 +116,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="1 0 1 1.0"/>
@@ -109,7 +125,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -161,7 +177,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0 0 1 1.0"/>
@@ -170,11 +186,11 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
-  <joint name="right_outer_knuckle_joint" type="revolute">
+  <joint name="right_outer_knuckle_joint" type="revolute" >
     <origin rpy="0 0 0" xyz="0 0.0306011 0.054904"/>
     <parent link="robotiq_arg2f_base_link"/>
     <child link="right_outer_knuckle"/>
@@ -191,7 +207,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
@@ -200,7 +216,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_outer_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -219,7 +235,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -228,7 +244,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_outer_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -249,7 +265,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="">
         <color rgba="0.1 0.1 0.1 1"/>
@@ -258,7 +274,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_inner_finger.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
@@ -310,7 +326,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/visual/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="visual/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
       <material name="LightGrey">
         <color rgba="0.7 0.7 0.7 1.0"/>
@@ -319,9 +335,9 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="robotiq_85/collision/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
+        <mesh filename="collision/robotiq_arg2f_85_inner_knuckle.dae" scale="0.001 0.001 0.001"/>
       </geometry>
     </collision>
   </link>
-</robot>
 
+</robot>
