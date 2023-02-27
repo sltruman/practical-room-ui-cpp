@@ -9,9 +9,6 @@
             "reset_joint_poses":[-1.57,0,0,0,1.57,0],
             "joint_damping":[ 0, 1, 0.9, 0.8, 0.7, 0],
             "end_effector":"./data/end_effectors/gripper/gripper.urdf",
-            "pick_pose":{
-                "pos":[0.0,0.0,0.025],"rot":[0,0,0]
-            }
         },
         {
             "kind":"Placer",
@@ -21,8 +18,8 @@
             "rot":[0,0,0],
             "center":[0.0,-0.5,0.5],
             "interval":0.1,
-            "amount":100,
-            "workpiece":"./data/workpieces/lego/lego.urdf"
+            "amount":10,
+            "workpiece":"./data/workpieces/a/a.urdf"
         }, 
         {
             "kind":"Camera3D",
@@ -41,11 +38,20 @@
         "declare":{
             "1":{"kind":"Placer","fun":"generate","name":"placer", "next":"2","args":{}},
             "2":{
-                "kind":"Camera3D","fun":"pose_recognize","name":"camera","args":{},
+                "kind":"Camera3D","fun":"pose_recognize","name":"camera", "next":"3","args":{},
                 "alt":[
                     {"next":"7","err": "failed"}
                 ]
-            }
+            },
+            "3":{"kind":"Robot","fun":"pick_plan","name":"robot","args":{
+                "pick_poses":[
+                    {"pos":[0.0,0.0,-0.01],"rot":[0,-1.57,0]},
+                    {"pos":[0.0,0.0,-0.01],"rot":[0,1.57,0]},
+                    {"pos":[0.0,0.0,-0.01],"rot":[-1.57,0,-1.57]},
+                    {"pos":[0.0,0.0,-0.01],"rot":[1.57,0,-1.57]}
+                ]
+            },"next":"4"},
+            "4":{"kind":"Robot","fun":"move","name":"robot","args":{"mode":"plan"}}
         }
     }
 }

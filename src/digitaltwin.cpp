@@ -49,16 +49,28 @@ void Scene::load(string scene_path) {
             md->backend->wait();
         }
 
-        // md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->viewport_size[0]),to_string(md->viewport_size[1]),tmp_path);
-        // md->backend->wait_for(chrono::seconds(4));
+        auto tmp_path = boost::filesystem::temp_directory_path().append("digitaltwin");
+        md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->viewport_size[0]),to_string(md->viewport_size[1]),tmp_path);
         cout << "succeded" << endl;
-        
-        cout << "Connecting to digital-twin...";
-        
+
         auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
-        auto socket_path = boost::filesystem::temp_directory_path().append("digitaltwin").append(socket_name);
+        auto socket_path = tmp_path.append(socket_name);
         
-        md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()));
+        for(int i=0;i<4;i++) {
+            cout << "Connecting to digital-twin...";
+            system::error_code ec;
+            auto x = md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec);
+            
+            if (ec) {
+                if (i==3) throw ec;
+                cout << "failed" << endl;
+                cerr << ec.message() << endl;
+                md->backend->wait_for(chrono::seconds(1));
+            } else {
+                break;
+            }
+        }
+
         cout << "succeded" << endl;
 
         goto SUCCEDED;
@@ -175,7 +187,7 @@ ActiveObject* Editor::select(int id)
         obj = new ActiveObject(scene, properties);
     }
 
-    if(active_objs.contains(id))
+    if(active_objs.find(id) != active_objs.end())
         *active_objs[id] = *obj;
     else
         active_objs[id] = obj;
