@@ -6,9 +6,9 @@
             "base":"./data/objects/tray/traybox.urdf",
             "pos":[0,-0.5,0.001],
             "rot":[0,0,0],
-            "center":[0.0,-0.5,0.5],
+            "center":[0.0,-0.5,0.25],
             "interval":0.1,
-            "amount":30,
+            "amount":100,
             "workpiece":"./data/workpieces/lego/lego.urdf"
         }, 
         {
@@ -27,14 +27,13 @@
         "run":"1",
         "declare":{
             "1":{
-                "kind":"Packer","fun":"generate","name":"packer",
+                "kind":"Placer","fun":"generate","name":"placer","next":"2","args":{},
                 "alt":[
-                    {"next":"2","cond":null},
-                    {"next":"3","cond":"out of amount"}
+                    {"next":"3","cond":"failed"}
                 ]
             },
-            "2":{"kind":"Camera","fun":"capture","name":"camera"},
-            "3":{"kind":"Camera","fun":"pose_recognize","name":"camera"}
+            "2":{"kind":"Camera","fun":"capture","name":"camera","args":{}},
+            "3":{"kind":"Camera","fun":"pose_recognize","name":"camera","args":{}}
         }
     }
 }

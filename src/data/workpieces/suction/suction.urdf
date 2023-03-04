@@ -1,19 +1,20 @@
 <?xml version="1.0" ?>
-<robot name="a">
+<robot name="a" >
   <link name="link_a">
     <contact>
-      <spinning_friction value="0.02"/>
-      <rolling_friction value="0.02"/>
+      <friction_anchor/>
+      <spinning_friction value="0.001"/>
+      <rolling_friction value="0.001"/>
       <lateral_friction value="1.0"/>
     </contact>
     <inertial>
-      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
        <mass value=".1"/>
        <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
     </inertial>
     <visual>
       <geometry>
-        <mesh filename="a.obj" scale="3 3 3"/>
+        <mesh filename="a.obj" scale="4 4 10"/>
       </geometry>
        <material name="yellow">
         <color rgba="1 1 0.4 1"/>
@@ -21,7 +22,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="a.obj" scale="3 3 3"/>
+        <mesh filename="a.obj" scale="4 4 10"/>
       </geometry>
     </collision>
   </link>

@@ -6,12 +6,9 @@
             "base":"./data/robots/ur5/ur5.urdf",
             "pos":[0,0,0],
             "rot":[0,0,3.14],
-            "reset_joint_poses":[-1.57,0,0,0,1.57,0],
-            "joint_damping":[ 0, 1, 0.9, 0.8, 0.7, 0],
-            "end_effector":"./data/end_effectors/suction/suction.urdf",
-            "pick_pose":{
-                "pos":[0.0,0.0,0.025],"rot":[0,0,0]
-            }
+            "reset_joint_poses":[-1.57,0.0,-0.3925,-0.785,1.57,0],
+            "joint_damping":[ 0, 1, 0.9, 0.8, 0.7, 0.0],
+            "end_effector":"./data/end_effectors/suction/suction.urdf"
         },
         {
             "kind":"Stacker",
@@ -45,12 +42,17 @@
                     {"next":"7","err": "failed"}
                 ]
             },
-            "3":{"kind":"Robot","fun":"pick_plan","name":"robot","next":"4","args":{}},
-            "4":{"kind":"Robot","fun":"move","name":"robot","next":"5","args":{"mode":"plan"}},
+            "3":{"kind":"Robot","fun":"pick_plan","name":"robot","next":"4","args":{
+                "pick_poses":[
+                    {"pos":[0.0,0.0,0.024],"rot":[0,0,0]}
+                ]
+            }},
+            "4":{"kind":"Robot","fun":"plan_move","name":"robot","next":"5","args":{}},
             "5":{"kind":"Robot","fun":"do","name":"robot","args":{"pickup": true},"next":"6"},
-            "6":{"kind":"Robot","fun":"move","name":"robot","args":{"mode":"relative","pos":[0.0,0.0,0.1]},"next":"7"},
-            "7":{"kind":"Robot","fun":"move","name":"robot","args":{"mode":"absolute","pos":[0.5,0.0,0.5]},"next":"8"},  
-            "8":{"kind":"Robot","fun":"do","name":"robot","args":{"pickup": false},"next":"2"}
+            "6":{"kind":"Robot","fun":"move_relatively","name":"robot","args":{"x":0.0,"y":0.0,"z":0.1},"next":"7"},
+            "7":{"kind":"Robot","fun":"move","name":"robot","args":{"x":0.5,"y":0.0,"z":0.5},"next":"8"},  
+            "8":{"kind":"Robot","fun":"do","name":"robot","args":{"pickup": false},"next":"9"},
+            "9":{"kind":"Robot","fun":"home","name":"robot","args":{},"next":"2"}
         }
     }
 }

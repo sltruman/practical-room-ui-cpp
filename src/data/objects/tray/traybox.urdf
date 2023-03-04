@@ -5,7 +5,7 @@
       <contact>
         <spinning_friction value="0.0"/>
         <rolling_friction value="0.0"/>
-        <lateral_friction value="0.2"/>
+        <lateral_friction value="1"/>
       </contact>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <mass value="1"/>

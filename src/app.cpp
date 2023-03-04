@@ -69,12 +69,12 @@ public:
         auto row_rtt = builder->get_widget<Gtk::ListBoxRow>("row_rtt");
         for(auto lbr : vector<Gtk::ListBoxRow*>{ row_end_effector,row_width,row_height,row_rtt }) lbr->set_visible(false);
 
-        spin_x->set_value(active_obj->x);
-        spin_y->set_value(active_obj->y);
-        spin_z->set_value(active_obj->z);
-        spin_roll->set_value(active_obj->roll);
-        spin_pitch->set_value(active_obj->pitch);
-        spin_yaw->set_value(active_obj->yaw);
+        spin_x->set_value(active_obj->pos[0]);
+        spin_y->set_value(active_obj->pos[1]);
+        spin_z->set_value(active_obj->pos[2]);
+        spin_roll->set_value(active_obj->rot[0]);
+        spin_pitch->set_value(active_obj->rot[1]);
+        spin_yaw->set_value(active_obj->rot[2]);
         entry_kind->set_text(active_obj->kind);
         
         base_signal_changed.disconnect();
@@ -188,12 +188,10 @@ public:
     }
 
     bool parseStacker(ActiveObject* active_obj) {
-        
         return true;
     }
 
     bool parsePacker(ActiveObject* active_obj) {
-
         return true;
     }
 
@@ -281,11 +279,12 @@ public:
                     auto y_norm = (y / area_zoom_factor - img_y) / img->get_height();
                     auto hit = editor->ray(x_norm,y_norm);
                     
-                    if(hit.id != -1) {
-                        auto active_obj = editor->select(hit.id);
+                    if(!hit.name.empty()) {
+                        auto active_obj = editor->select(hit.name);
                         properties->parse(active_obj);
                     }
-                    right_side_pannel->set_visible(hit.id != -1);
+                    
+                    right_side_pannel->set_visible(!hit.name.empty());
                 }
 
                 break;

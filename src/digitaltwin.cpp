@@ -58,17 +58,15 @@ void Scene::load(string scene_path) {
         
         for(int i=0;i<4;i++) {
             cout << "Connecting to digital-twin...";
-            system::error_code ec;
-            auto x = md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec);
+            md->backend->wait_for(chrono::seconds(1));
             
-            if (ec) {
-                if (i==3) throw ec;
+            system::error_code ec;           
+            if (md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec)) {
                 cout << "failed" << endl;
                 cerr << ec.message() << endl;
-                md->backend->wait_for(chrono::seconds(1));
-            } else {
-                break;
-            }
+            } else break;
+
+            if (i==3) throw ec;
         }
 
         cout << "succeded" << endl;
@@ -85,10 +83,6 @@ FAILED:
 
 SUCCEDED:
     ;
-}
-
-void Scene::save() {
-    
 }
 
 const Texture Scene::rtt() {
@@ -136,6 +130,11 @@ void Scene::zoom(double factor)
     asio::write(md->socket,  asio::buffer(req.str()));
 }
 
+map<string,ActiveObject*> Scene::get_active_objs()
+{
+    return map<string,ActiveObject*>();
+}
+
 Editor::Editor(Scene* sp) : scene(sp) 
 {
 
@@ -154,18 +153,21 @@ RayInfo Editor::ray(double x,double y)
     cout << json_res.dump() << endl;
     
     auto pos = json_res["pos"];
-    return RayInfo {(int)json_res["id"].get<long long>(),{pos[0].get<double>(),pos[1].get<double>(),pos[2].get<double>()}};
+    return RayInfo {json_res["name"].get<string>(),{pos[0].get<double>(),pos[1].get<double>(),pos[2].get<double>()}};
 }
 
-void Editor::move(int id,double pos[3])
-{
-
-}
-
-ActiveObject* Editor::select(int id)
+void Editor::move(string name,Vec3 pos)
 {
     stringstream req;
-    req << "editor.select(" << id << ")" << endl;
+    req << "editor.move('" << name << "',[" << pos[0] << "," << pos[1] << "," << pos[2] << "])" << endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+}
+
+ActiveObject* Editor::select(string name)
+{
+    stringstream req;
+    req << "editor.select(" << name << ")" << endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
 
@@ -187,45 +189,65 @@ ActiveObject* Editor::select(int id)
         obj = new ActiveObject(scene, properties);
     }
 
-    if(active_objs.find(id) != active_objs.end())
-        *active_objs[id] = *obj;
+    if(scene->active_objs_by_name.find(name) != scene->active_objs_by_name.end())
+        *scene->active_objs_by_name[name] = *obj;
     else
-        active_objs[id] = obj;
+        scene->active_objs_by_name[name] = obj;
 
-    return active_objs[id];
+    return scene->active_objs_by_name[name];
+}
+
+void Editor::add(string base,Vec3 pos,Vec3 rot,Vec3 scale) 
+{
+
+}
+
+void Editor::remove(string name) 
+{
+
+}
+
+void Editor::set_parent(string parent_name,string child_name)
+{
+
+}
+
+void Editor::transparentize(string name,float value) 
+{
+
+}
+
+
+void Editor::save() {
+    stringstream req;
+    req << "editor.save()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
 {
     auto json_properties = json::parse(properties);
 
+    name = json_properties["name"].get<string>().c_str();
     kind = json_properties["kind"].get<string>().c_str();
-    id = json_properties["id"].get<long long>();
     base = json_properties["base"].get<string>().c_str();
     auto pos = json_properties["pos"];
     auto rot = json_properties["rot"];
-
-    x = pos[0].get<double>();
-    y = pos[1].get<double>();
-    z = pos[2].get<double>();
-    roll = rot[1].get<double>();
-    pitch = rot[0].get<double>();
-    yaw = rot[2].get<double>();
+    copy(pos.begin(),pos.begin(),this->pos.begin());
+    copy(rot.begin(),rot.begin(),this->rot.begin());
 }
 
 void ActiveObject::set_base(string path) 
 {
     stringstream req;
-    req << "scene.active_objs["<<id<<"].set_base('"<<path<<"')"<<endl;
+    req << "scene.active_objs_by_name["<<name<<"].set_base('"<<path<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
-     asio::streambuf res;
+    asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
     cout << res.data().data() << endl;
     base = path;
-    istream in(&res); in >> id;
 }
-
 
 Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 {
@@ -236,7 +258,7 @@ Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 void Robot::set_end_effector(string path)
 {
     stringstream req;
-    req << "scene.active_objs["<<id<<"].set_end_effector('"<<path<<"')"<<endl;
+    req << "scene.active_objs_by_name["<<name<<"].set_end_effector('"<<path<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
@@ -245,6 +267,14 @@ void Robot::set_end_effector(string path)
     end_effector = path;
     
     istream i(&res); i >> end_effector_id;
+}
+
+void Robot::digital_output(bool pickup) 
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].end_effector_obj.do(" << (pickup ? "True" : "False")  << ")"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
 }
 
 Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
@@ -261,7 +291,7 @@ Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
 
 const Texture Camera3D::rtt() {
     stringstream req;
-    req << "scene.active_objs["<<id<<"].rtt()" << endl;
+    req << "scene.active_objs_by_name["<<name<<"].rtt()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
     asio::read(scene->md->socket,asio::buffer(rgba_pixels));
     asio::read(scene->md->socket,asio::buffer(depth_pixels));
@@ -275,9 +305,53 @@ const Texture Camera3D::rtt() {
     return t;
 };
 
-Workflow::Workflow(Scene* sp) : scene(sp)   {
-
+Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
+{
+    auto json_properties = json::parse(properties);
+    auto pos = json_properties["center"];
+    copy(pos.begin(),pos.end(),center.begin());
+    interval = json_properties["interval"].get<int>();
+    amount = json_properties["amount"].get<int>();
+    workpiece = json_properties["workpiece"].get<string>();
 }
+
+void Placer::set_workpiece(string base) 
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].workpiece = " << base << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Placer::set_workpiece_texture(string img_path)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].workpiece_texture = " << img_path << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Placer::set_center(Vec3 pos)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].center = [" << pos[0] << ',' << pos[0] << ',' << pos[2] << ']' << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Placer::set_amount(int num)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].amount = " << num << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Placer::set_interval(float seconds)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].interval = " << seconds << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+
+Workflow::Workflow(Scene* sp) : scene(sp)   {}
 
 string Workflow::get_active_obj_nodes() {
     stringstream req;

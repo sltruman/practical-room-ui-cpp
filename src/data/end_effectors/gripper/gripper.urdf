@@ -136,6 +136,14 @@
     <axis xyz="0 0 1"/>
   </joint>
   <link name="left_inner_finger_pad">
+    <contact>
+      <friction_anchor/>
+      <stiffness value="30000.0"/>
+      <damping value="60000.0"/>
+      <spinning_friction value="0.02"/>
+      <rolling_friction value="0.02"/>
+      <lateral_friction value="1.0"/>
+    </contact>
     <inertial>
       <mass value="1."/>
       <inertia ixx="1E-10" ixy="1E-10" ixz="1E-10" iyy="1E-10" iyz="1E-10" izz="1E-10"/>
@@ -285,6 +293,14 @@
     <axis xyz="0 0 1"/>
   </joint>
   <link name="right_inner_finger_pad">
+    <contact>
+      <friction_anchor/>
+      <stiffness value="30000.0"/>
+      <damping value="60000.0"/>
+      <spinning_friction value="0.02"/>
+      <rolling_friction value="0.02"/>
+      <lateral_friction value="1.0"/>
+    </contact>
     <inertial>
       <mass value="1"/>
       <inertia ixx="1E-10" ixy="1E-10" ixz="1E-10" iyy="1E-10" iyz="1E-10" izz="1E-10"/>
@@ -342,7 +358,7 @@
   <joint name="joint_ee" type="fixed">
     <parent link="robotiq_arg2f_base_link"/>
     <child link="ee_link"/>
-    <origin rpy="3.14 0.0 0.0" xyz="0.0 0.0 0.15"/>
+    <origin rpy="3.14 0.0 0.0" xyz="0.0 0.0 0.14"/>
   </joint>
   <link name="ee_link"/>
 </robot>
