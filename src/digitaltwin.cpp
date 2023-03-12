@@ -53,6 +53,12 @@ void Scene::load(string scene_path) {
         md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->viewport_size[0]),to_string(md->viewport_size[1]),tmp_path);
         cout << "succeded" << endl;
 
+        cout << "command:" << "digitaltwin" << ' '
+             << scene_path << ' '
+             << to_string(md->viewport_size[0]) << ' '
+             << to_string(md->viewport_size[1]) << ' '
+             << tmp_path << endl;
+             
         auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
         auto socket_path = tmp_path.append(socket_name);
         
@@ -114,6 +120,31 @@ void Scene::rotate(double x,double y)
     asio::write(md->socket,  asio::buffer(req.str()));
 }
 
+void Scene::rotete_left() 
+{
+
+}
+
+void Scene::rotete_right() 
+{
+
+}
+
+void Scene::rotete_top()
+{
+
+}
+
+void Scene::rotete_front()
+{
+
+}
+
+void Scene::rotete_back() 
+{
+
+}
+
 void Scene::pan(double x,double y) 
 {
     stringstream req;
@@ -135,7 +166,12 @@ map<string,ActiveObject*> Scene::get_active_objs()
     return map<string,ActiveObject*>();
 }
 
-Editor::Editor(Scene* sp) : scene(sp) 
+void Scene::set_logging(std::function<void(string)> log_callback)
+{
+
+}
+
+Editor::Editor(Scene* sp) : scene(sp)
 {
 
 }
@@ -277,6 +313,61 @@ void Robot::digital_output(bool pickup)
     asio::write(scene->md->socket,  asio::buffer(req.str()));
 }
 
+int Robot::get_joints_num()
+{
+    return 0;
+}
+
+void Robot::set_joint_position(int joint_index,float value)
+{
+
+}
+
+float Robot::get_joint_position(int joint_index)
+{
+
+}
+
+void Robot::set_end_effector_pos(Vec3 pos)
+{
+
+}
+
+Vec3 Robot::get_end_effector_pos()
+{
+
+}
+
+void Robot::set_end_effector_rot(Vec3 rot)
+{
+
+}
+
+Vec3 Robot::get_end_effector_rot()
+{
+
+}
+
+void Robot::set_home()
+{
+
+}
+
+void Robot::home()
+{
+
+}
+
+void Robot::set_speed(float value)
+{
+
+}
+
+void Robot::track(bool enable)
+{
+
+}
+
 Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
@@ -304,6 +395,12 @@ const Texture Camera3D::rtt() {
 
     return t;
 };
+
+void Camera3D::set_calibration(string params)
+{
+
+}
+
 
 Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
 {
@@ -348,6 +445,17 @@ void Placer::set_interval(float seconds)
     stringstream req;
     req << "scene.active_objs_by_name["<<name<<"].interval = " << seconds << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+
+void Placer::set_scale_factor(float max,float min) 
+{
+
+}
+
+void Placer::set_place_mode(string place_mode)
+{
+
 }
 
 

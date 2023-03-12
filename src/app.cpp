@@ -242,7 +242,7 @@ public:
             auto scene_path = dialog->get_file()->get_path();
             cout << response_id << ' ' << dialog->get_file()->get_path() << endl;
             
-            scene = new Scene(800,640, scene_path);
+            scene = new Scene(640,480, scene_path);
             editor = new Editor(scene);
             workflow = new Workflow(scene);
             area->set_draw_func(sigc::mem_fun(*this, &AppWindow::area_paint_event));
