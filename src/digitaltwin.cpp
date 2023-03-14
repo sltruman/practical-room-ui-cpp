@@ -58,7 +58,7 @@ void Scene::load(string scene_path) {
              << to_string(md->viewport_size[0]) << ' '
              << to_string(md->viewport_size[1]) << ' '
              << tmp_path << endl;
-             
+
         auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
         auto socket_path = tmp_path.append(socket_name);
         
@@ -163,7 +163,38 @@ void Scene::zoom(double factor)
 
 map<string,ActiveObject*> Scene::get_active_objs()
 {
-    return map<string,ActiveObject*>();
+    stringstream req;
+    req << "scene.get_active_obj_properties()" << endl;
+    asio::write(md->socket,asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
+
+    for (auto i : json_res.items()) {
+        auto name = i.key();
+        auto properties = i.value();
+        auto description = properties.dump();
+        
+        ActiveObject* obj = nullptr;
+        auto it = active_objs_by_name.find(name);
+        if(it != active_objs_by_name.end()) continue;
+
+        auto kind = properties["kind"].get<string>();
+        if(kind == "Robot") {
+            obj = new Robot(this, description);
+        } else if(kind == "Camera3D") {
+            obj = new Camera3D(this, description);
+        } else if(kind == "Packer") {
+            obj = new Placer(this, description);
+        } else {
+            obj = new ActiveObject(this, description);
+        }
+
+        active_objs_by_name[name] = obj;
+    }
+
+    return active_objs_by_name;
 }
 
 void Scene::set_logging(std::function<void(string)> log_callback)
@@ -192,14 +223,6 @@ RayInfo Editor::ray(double x,double y)
     return RayInfo {json_res["name"].get<string>(),{pos[0].get<double>(),pos[1].get<double>(),pos[2].get<double>()}};
 }
 
-void Editor::move(string name,Vec3 pos)
-{
-    stringstream req;
-    req << "editor.move('" << name << "',[" << pos[0] << "," << pos[1] << "," << pos[2] << "])" << endl;
-    cout << req.str();
-    asio::write(scene->md->socket,  asio::buffer(req.str()));
-}
-
 ActiveObject* Editor::select(string name)
 {
     stringstream req;
@@ -212,7 +235,6 @@ ActiveObject* Editor::select(string name)
     auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
     cout << json_res.dump() << endl;
     auto properties = json_res.dump();
-
     auto kind = json_res["kind"].get<string>();
     
     ActiveObject* obj = nullptr;
@@ -243,18 +265,18 @@ void Editor::remove(string name)
 
 }
 
-void Editor::set_parent(string parent_name,string child_name)
-{
+void Editor::set_relation(string parent,string child)
+{   
 
 }
 
-void Editor::transparentize(string name,float value) 
+list<Relation> Editor::get_relations() 
 {
-
+    return {};
 }
 
-
-void Editor::save() {
+void Editor::save() 
+{
     stringstream req;
     req << "editor.save()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
@@ -263,7 +285,6 @@ void Editor::save() {
 ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
 {
     auto json_properties = json::parse(properties);
-
     name = json_properties["name"].get<string>().c_str();
     kind = json_properties["kind"].get<string>().c_str();
     base = json_properties["base"].get<string>().c_str();
@@ -273,7 +294,7 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
     copy(rot.begin(),rot.begin(),this->rot.begin());
 }
 
-void ActiveObject::set_base(string path) 
+void ActiveObject::set_base(string path)
 {
     stringstream req;
     req << "scene.active_objs_by_name["<<name<<"].set_base('"<<path<<"')"<<endl;
@@ -283,6 +304,63 @@ void ActiveObject::set_base(string path)
     asio::read_until(scene->md->socket, res,'\n');
     cout << res.data().data() << endl;
     base = path;
+}
+
+void ActiveObject::set_pos(Vec3 pos)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].set_pos([" << pos[0] << ',' << pos[1] << ',' << pos[2] << "])"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    this->pos = pos;
+}
+
+Vec3 ActiveObject::get_pos()
+{
+    return pos;
+}
+
+void ActiveObject::set_rot(Vec3 rot)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].set_rot([" << rot[0] << ',' << rot[1] << ',' << rot[2] << "])"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    this->rot = rot;
+}
+
+Vec3 ActiveObject::get_rot()
+{
+    return rot;
+}
+
+void ActiveObject::set_scale(Vec3 scale)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name["<<name<<"].set_scale([" << rot[0] << ',' << rot[1] << ',' << rot[2] << "])"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    this->rot = rot;
+}
+
+Vec3 ActiveObject::get_scale()
+{
+    return rot;
+}
+
+void ActiveObject::set_transparence(float value)
+{
+
+}
+
+float ActiveObject::get_transparence() 
+{
+    return 0.;
+}
+
+string ActiveObject::get_kind()
+{
+    return kind;
 }
 
 Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
@@ -325,7 +403,7 @@ void Robot::set_joint_position(int joint_index,float value)
 
 float Robot::get_joint_position(int joint_index)
 {
-
+    return 0.0;
 }
 
 void Robot::set_end_effector_pos(Vec3 pos)
@@ -335,7 +413,7 @@ void Robot::set_end_effector_pos(Vec3 pos)
 
 Vec3 Robot::get_end_effector_pos()
 {
-
+    return Vec3();
 }
 
 void Robot::set_end_effector_rot(Vec3 rot)
@@ -345,7 +423,7 @@ void Robot::set_end_effector_rot(Vec3 rot)
 
 Vec3 Robot::get_end_effector_rot()
 {
-
+    return Vec3();
 }
 
 void Robot::set_home()
@@ -401,7 +479,6 @@ void Camera3D::set_calibration(string params)
 
 }
 
-
 Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
@@ -447,7 +524,6 @@ void Placer::set_interval(float seconds)
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
-
 void Placer::set_scale_factor(float max,float min) 
 {
 
@@ -457,7 +533,6 @@ void Placer::set_place_mode(string place_mode)
 {
 
 }
-
 
 Workflow::Workflow(Scene* sp) : scene(sp)   {}
 
@@ -484,7 +559,6 @@ string Workflow::get() {
     asio::read_until(scene->md->socket, res,'\n');
     return string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()));
 }
-
 
 void Workflow::start() {
     stringstream req;

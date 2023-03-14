@@ -49,6 +49,7 @@ public:
 
     map<string,ActiveObject*> get_active_objs();
     void set_logging(std::function<void(string)> log_callback);
+
 protected:
     struct Plugin;
     Plugin* md;
@@ -56,51 +57,56 @@ protected:
 };
 
 struct RayInfo { string name; double pos[3];};
+struct Relation {
+    string name;
+    list<Relation> children;
+};
+
 class Editor
 {
 public:
     Editor(Scene* sp);
     RayInfo ray(double x,double y);
-    void move(string name,Vec3 pos);
-    void rotate(string name,Vec3 rot);
-    void scale(string name,Vec3 scale);
     ActiveObject* select(string name);
     void add(string base,Vec3 pos,Vec3 rot,Vec3 scale);
     void remove(string name);
-    void set_parent(string parent_name,string child_name);
-    void transparentize(string name,float value);
     void save();
-
-public:
-    Scene* scene;
+    void set_relation(string parent,string child);
+    list<Relation> get_relations();
 
 protected:
     struct Plugin;
     Plugin* md;
-};
-
-class ActiveObject
-{
-public:
-    ActiveObject(Scene* sp,string properties);
-    virtual ~ActiveObject() {}
-    bool set_name(string name);
-    virtual void set_base(string path);
-    string name,kind,base;
-    Vec3 pos,rot;
-
-protected:
     Scene* scene;
 };
 
-class Robot : public ActiveObject
+struct ActiveObject
 {
-public:
+    ActiveObject(Scene* sp,string properties);
+    virtual ~ActiveObject() {}
+    bool set_name(string name);
+    string get_name();
+    void set_base(string path);
+    string get_base();
+    void set_pos(Vec3 pos);
+    Vec3 get_pos();
+    void set_rot(Vec3 rot);
+    Vec3 get_rot();
+    void set_scale(Vec3 scale);
+    Vec3 get_scale();
+    void set_transparence(float value);
+    float get_transparence();
+    string get_kind();
+
+    Scene* scene;
+    string name,kind,base;
+    Vec3 pos,rot;
+};
+
+struct Robot : public ActiveObject
+{
     Robot(Scene* sp,string properties);
     virtual ~Robot() {}
-
-    int end_effector_id;
-    string end_effector;
     void set_end_effector(string path);
     void digital_output(bool pickup);
     int get_joints_num();
@@ -115,11 +121,13 @@ public:
     void set_home();
     void home();
     void track(bool enable);
+
+    int end_effector_id;
+    string end_effector;
 };
 
-class Camera3D : public ActiveObject
+struct Camera3D : public ActiveObject
 {
-public:
     Camera3D(Scene* sp,string properties);
     virtual ~Camera3D() {}
     const Texture rtt();
@@ -131,9 +139,8 @@ public:
     double forcal;
 };
 
-class Placer : public ActiveObject
+struct Placer : public ActiveObject
 {
-public:
     Placer(Scene* sp,string properties);
     virtual ~Placer() {}
     void set_workpiece(string base);

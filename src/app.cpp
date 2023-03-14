@@ -247,6 +247,8 @@ public:
             workflow = new Workflow(scene);
             area->set_draw_func(sigc::mem_fun(*this, &AppWindow::area_paint_event));
 
+            scene->get_active_objs();
+
             auto controller = Gtk::EventControllerLegacy::create();
             controller->signal_event().connect(sigc::mem_fun(*this,&AppWindow::area_drag_event),false);
             overlay->add_controller(controller);
