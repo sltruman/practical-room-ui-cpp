@@ -11,7 +11,6 @@ using json = nlohmann::json;
 
 namespace digitaltwin {
 
-
 struct Scene::Plugin 
 {
     Plugin(): socket(io_context)
@@ -255,9 +254,9 @@ ActiveObject* Editor::select(string name)
     return scene->active_objs_by_name[name];
 }
 
-void Editor::add(string base,Vec3 pos,Vec3 rot,Vec3 scale) 
+ActiveObject* Editor::add(string base,Vec3 pos,Vec3 rot,Vec3 scale) 
 {
-
+    return nullptr;
 }
 
 void Editor::remove(string name) 
@@ -472,7 +471,7 @@ const Texture Camera3D::rtt() {
     t.depth_pixels = depth_pixels.data();
 
     return t;
-};
+}
 
 void Camera3D::set_calibration(string params)
 {
@@ -489,7 +488,7 @@ Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
     workpiece = json_properties["workpiece"].get<string>();
 }
 
-void Placer::set_workpiece(string base) 
+void Placer::set_workpiece(string base)
 {
     stringstream req;
     req << "scene.active_objs_by_name["<<name<<"].workpiece = " << base << endl;
@@ -534,7 +533,17 @@ void Placer::set_place_mode(string place_mode)
 
 }
 
-Workflow::Workflow(Scene* sp) : scene(sp)   {}
+void Placer::get_layout(int& x,int& y,int& z)
+{
+
+}
+
+void Placer::set_layout(int x,int y,int z)
+{
+
+}
+
+Workflow::Workflow(Scene* sp) : scene(sp) {}
 
 string Workflow::get_active_obj_nodes() {
     stringstream req;

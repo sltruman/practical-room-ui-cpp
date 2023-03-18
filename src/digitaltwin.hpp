@@ -68,7 +68,7 @@ public:
     Editor(Scene* sp);
     RayInfo ray(double x,double y);
     ActiveObject* select(string name);
-    void add(string base,Vec3 pos,Vec3 rot,Vec3 scale);
+    ActiveObject* add(string base,Vec3 pos,Vec3 rot,Vec3 scale);
     void remove(string name);
     void save();
     void set_relation(string parent,string child);
@@ -108,6 +108,7 @@ struct Robot : public ActiveObject
     Robot(Scene* sp,string properties);
     virtual ~Robot() {}
     void set_end_effector(string path);
+    string get_end_effector();
     void digital_output(bool pickup);
     int get_joints_num();
     void set_joint_position(int joint_index,float value);
@@ -143,21 +144,23 @@ struct Placer : public ActiveObject
 {
     Placer(Scene* sp,string properties);
     virtual ~Placer() {}
-    void set_workpiece(string base);
-    void set_workpiece_texture(string texture);
-    void set_center(Vec3 pos);
-    void set_amount(int num);
-    void set_interval(float seconds);
-    void set_scale_factor(float max,float min);
-    void get_scale_factor(float& max,float& min);
-    void set_place_mode(string place_mode); // random：随机的 tidy：整齐的
     string get_workpiece();
+    void set_workpiece(string base);
     string get_workpiece_texture();
+    void set_workpiece_texture(string texture);
     Vec3 get_center();
+    void set_center(Vec3 pos);
     int get_amount();
+    void set_amount(int num);
+    void get_layout(int& x,int& y,int& z);
+    void set_layout(int x,int y,int z);
     float get_interval();
+    void set_interval(float seconds);
+    void get_scale_factor(float& max,float& min);
+    void set_scale_factor(float max,float min);
     string get_place_mode();
-
+    void set_place_mode(string place_mode); // random：随机的 tidy：整齐的 layout：整齐的xyz布局
+    
     string workpiece,workpiece_texture;
     Vec3 center,scale_factor;
     int interval,amount;
@@ -169,7 +172,6 @@ class Stacker : public ActiveObject
 public:
     Stacker(Scene* sp,string properties);
     virtual ~Stacker() {}
-    
 };
 
 class Workflow
