@@ -127,17 +127,20 @@ struct Robot : public ActiveObject
     string end_effector;
 };
 
+typedef function<bool(vector<unsigned char>&,vector<float>&)> SlotRTT;
 struct Camera3D : public ActiveObject
 {
     Camera3D(Scene* sp,string properties);
     virtual ~Camera3D() {}
     const Texture rtt();
-    void set_calibration(string params);
+    void set_rtt_func(SlotRTT slot);  //获取真实相机数据，RGB，Depth，点云，点云颜色
+    void set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
     
-    vector<unsigned char> rgba_pixels;
+    vector<unsigned char> rgba_pixels,gray_pixels;
     vector<unsigned char> depth_pixels;
     int image_size[2],fov;
     double forcal;
+    SlotRTT slot_rtt;
 };
 
 struct Placer : public ActiveObject
@@ -178,12 +181,13 @@ class Workflow
 {
 public:
     Workflow(Scene* sp);
+    void add_active_obj_node(string kind,string name,string f,function<string()> slot);
     string get_active_obj_nodes();
     void set(string info);
     string get();
     void start();
     void stop();
-
+    
 public:
     Scene* scene;
 };

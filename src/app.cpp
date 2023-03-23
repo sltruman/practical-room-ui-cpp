@@ -82,19 +82,15 @@ public:
 
         auto dir_base = dir_objects;
         if(parseRobot(active_obj)) {
-            
             row_end_effector->set_visible();
             dir_base = dir_robots;
-            
         } else if (parseCamera(active_obj)) {
             row_width->set_visible();
             row_height->set_visible();
             row_rtt->set_visible();
             dir_base = dir_cameras;
         } else if (parsePacker(active_obj)) {
-            
-        } else if (parseStacker(active_obj)) {
-
+        } else if (parseStacker(active_obj)) {  
         } 
 
         for (auto e : filesystem::recursive_directory_iterator(dir_base)) { 
@@ -155,7 +151,7 @@ public:
         spin_width->set_value(obj->fov);
         spin_height->set_value(obj->forcal);
 
-        auto rtt = [obj,area_texture,area_texture2](){
+        auto rtt = [obj,area_texture,area_texture2]() {
             auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
             int area_w = area_texture->get_width();
             int area_h = area_w / aspect_ratio_viewport;
@@ -169,7 +165,7 @@ public:
         };
 
         if(!area_texture->get_paintable()) {
-            Glib::signal_timeout().connect_once([area_texture,area_texture2,obj](){
+            Glib::signal_timeout().connect_once([area_texture,area_texture2,obj]() {
                 auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
                 int area_w = area_texture->get_width();
                 int area_h = area_w / aspect_ratio_viewport;
@@ -214,7 +210,6 @@ public:
         area = builder->get_widget<Gtk::DrawingArea>("simulation");
         right_side_pannel = builder->get_widget<Gtk::ScrolledWindow>("right_side_pannel");
         properties = builder->get_widget_derived<ObjectProperties>(builder,"properties");
-        
     }
 
     ~AppWindow()
@@ -326,7 +321,7 @@ public:
         return false;
     }
 
-    void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h) 
+    void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h)
     {
         Glib::signal_timeout().connect_once([this]() { area->queue_draw(); }, 1000 / 24);
         

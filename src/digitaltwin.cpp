@@ -473,7 +473,12 @@ const Texture Camera3D::rtt() {
     return t;
 }
 
-void Camera3D::set_calibration(string params)
+void Camera3D::set_rtt_func(function<bool(vector<unsigned char>&,vector<float>&,vector<Vec3>&,vector<Vec3>&)> slot)  //获取真实相机数据，RGB，Depth，点云，点云颜色
+{
+    
+}
+
+void Camera3D::set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
 {
 
 }
@@ -540,7 +545,7 @@ void Placer::get_layout(int& x,int& y,int& z)
 
 void Placer::set_layout(int x,int y,int z)
 {
-
+    
 }
 
 Workflow::Workflow(Scene* sp) : scene(sp) {}
