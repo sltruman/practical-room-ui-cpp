@@ -187,7 +187,6 @@ public:
     string get();
     void start();
     void stop();
-    
 public:
     Scene* scene;
 };
