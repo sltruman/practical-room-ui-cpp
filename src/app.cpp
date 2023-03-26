@@ -242,9 +242,23 @@ public:
             workflow = new Workflow(scene);
             area->set_draw_func(sigc::mem_fun(*this, &AppWindow::area_paint_event));
 
+            Camera3D* camera = dynamic_cast<Camera3D*>(scene->get_active_objs()["camera"]);
+            camera->set_calibration("[[2063.6201171875,0.0,966.2369995117188],[0.0,2063.840087890625,590.551025390625],[0.0,0.0,1.0]]","[[-0.03848572352572521,-0.9986251185481502,-0.035591033793917766,0.9516957587752023],[-0.9992461560238449,0.03827916479278677,0.006467241624670584,-0.900332425706558],[-0.005095954886352403,0.03581310018049166,-0.9993455123725961,0.953975140167797],[0.0,0.0,0.0,1.0]]");
+            camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels) {
+
+                return true;
+            });
+
+            workflow->add_active_obj_node("Vision","PickLight","detect",[](){
+                return "[\
+                    [],\
+                    [],\
+                    [],\
+                    [0.0,0.0,0.0,1.0]\
+                ]";
+            });
+
             cout << workflow->get_active_obj_nodes() << endl;
-
-
             auto controller = Gtk::EventControllerLegacy::create();
             controller->signal_event().connect(sigc::mem_fun(*this,&AppWindow::area_drag_event),false);
             overlay->add_controller(controller);

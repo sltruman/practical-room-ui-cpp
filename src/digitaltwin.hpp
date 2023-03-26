@@ -5,6 +5,7 @@
 #include <list>
 #include <array>
 #include <functional>
+#include <thread>
 using namespace std;
 
 namespace digitaltwin
@@ -140,7 +141,7 @@ struct Camera3D : public ActiveObject
     vector<unsigned char> depth_pixels;
     int image_size[2],fov;
     double forcal;
-    SlotRTT slot_rtt;
+    thread rtt_proxy;
 };
 
 struct Placer : public ActiveObject
@@ -181,14 +182,16 @@ class Workflow
 {
 public:
     Workflow(Scene* sp);
-    void add_active_obj_node(string kind,string name,string f,function<string()> slot);
+    void add_active_obj_node(string kind,string name,string f,std::function<string()> slot);
     string get_active_obj_nodes();
     void set(string info);
     string get();
     void start();
     void stop();
-public:
+    
+protected:
     Scene* scene;
+    list<thread> proxy_nodes;
 };
 
 }

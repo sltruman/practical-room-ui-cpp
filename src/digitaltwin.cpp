@@ -296,7 +296,7 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
 void ActiveObject::set_base(string path)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].set_base('"<<path<<"')"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_base('"<<path<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
@@ -308,7 +308,7 @@ void ActiveObject::set_base(string path)
 void ActiveObject::set_pos(Vec3 pos)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].set_pos([" << pos[0] << ',' << pos[1] << ',' << pos[2] << "])"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_pos([" << pos[0] << ',' << pos[1] << ',' << pos[2] << "])"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     this->pos = pos;
@@ -322,7 +322,7 @@ Vec3 ActiveObject::get_pos()
 void ActiveObject::set_rot(Vec3 rot)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].set_rot([" << rot[0] << ',' << rot[1] << ',' << rot[2] << "])"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_rot([" << rot[0] << ',' << rot[1] << ',' << rot[2] << "])"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     this->rot = rot;
@@ -336,7 +336,7 @@ Vec3 ActiveObject::get_rot()
 void ActiveObject::set_scale(Vec3 scale)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].set_scale([" << rot[0] << ',' << rot[1] << ',' << rot[2] << "])"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_scale([" << rot[0] << ',' << rot[1] << ',' << rot[2] << "])"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     this->rot = rot;
@@ -371,7 +371,7 @@ Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 void Robot::set_end_effector(string path)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].set_end_effector('"<<path<<"')"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector('"<<path<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
@@ -385,7 +385,7 @@ void Robot::set_end_effector(string path)
 void Robot::digital_output(bool pickup) 
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].end_effector_obj.do(" << (pickup ? "True" : "False")  << ")"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].end_effector_obj.do(" << (pickup ? "True" : "False")  << ")"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
 }
@@ -459,7 +459,7 @@ Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
 
 const Texture Camera3D::rtt() {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].rtt()" << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].rtt()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
     asio::read(scene->md->socket,asio::buffer(rgba_pixels));
     asio::read(scene->md->socket,asio::buffer(depth_pixels));
@@ -469,18 +469,39 @@ const Texture Camera3D::rtt() {
     t.height = image_size[1];
     t.rgba_pixels = rgba_pixels.data();
     t.depth_pixels = depth_pixels.data();
-
+    
     return t;
 }
 
-void Camera3D::set_rtt_func(function<bool(vector<unsigned char>&,vector<float>&,vector<Vec3>&,vector<Vec3>&)> slot)  //获取真实相机数据，RGB，Depth，点云，点云颜色
+void Camera3D::set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&)> slot) 
 {
+    rtt_proxy = thread([kind,name,f,flot,slot]() {
+        asio::io_context io_context;
 
+                
+        unlink(""); // Remove previous binding.
+        asio::local::stream_protocol::endpoint ep("/tmp/foobar");
+        asio::local::stream_protocol::acceptor acceptor(io_context, ep);
+        asio::local::stream_protocol::socket socket(io_context);
+        acceptor.accept(socket);
+        
+        system::error_code ec;
+        socket.bind(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec)
+        vector<unsigned char> rgb_pixels;
+        vector<float> depth_pixels;
+        if(slot(rgb_pixels,depth_pixels)) {
+    
+        } else {
+
+        }
+    });
 }
 
-void Camera3D::set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
+void Camera3D::set_calibration(string projection_transform,string eye_to_hand_transform) 
 {
-
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_calibration("<<projection_transform<<","<<eye_to_hand_transform<<")" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
@@ -496,35 +517,35 @@ Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
 void Placer::set_workpiece(string base)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].workpiece = " << base << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].workpiece = " << base << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_workpiece_texture(string img_path)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].workpiece_texture = " << img_path << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].workpiece_texture = " << img_path << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_center(Vec3 pos)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].center = [" << pos[0] << ',' << pos[0] << ',' << pos[2] << ']' << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].center = [" << pos[0] << ',' << pos[0] << ',' << pos[2] << ']' << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_amount(int num)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].amount = " << num << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].amount = " << num << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_interval(float seconds)
 {
     stringstream req;
-    req << "scene.active_objs_by_name["<<name<<"].interval = " << seconds << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].interval = " << seconds << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
@@ -549,6 +570,14 @@ void Placer::set_layout(int x,int y,int z)
 }
 
 Workflow::Workflow(Scene* sp) : scene(sp) {}
+
+void Workflow::add_active_obj_node(string kind,string name,string f,std::function<string()> slot) 
+{
+    proxy_nodes.emplace_back([kind,name,f,flot](){
+
+        slot();
+    });
+}
 
 string Workflow::get_active_obj_nodes() {
     stringstream req;
