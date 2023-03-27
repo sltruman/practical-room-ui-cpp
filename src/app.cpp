@@ -17,14 +17,14 @@ using namespace boost;
 #include "digitaltwin.hpp"
 using namespace digitaltwin;
 
-static const filesystem::path dir_data = "./data";
-static const filesystem::path dir_workpieces = "./data/workpieces";
-static const filesystem::path dir_end_effectors = "./data/end_effectors";
-static const filesystem::path dir_cameras = "./data/cameras";
-static const filesystem::path dir_objects = "./data/objects";
-static const filesystem::path dir_static_objects = "./data/static_objects";
-static const filesystem::path dir_robots = "./data/robots";
-static const filesystem::path dir_scenes = "./data/scenes";
+static const boost::filesystem::path dir_data = "./data";
+static const boost::filesystem::path dir_workpieces = "./data/workpieces";
+static const boost::filesystem::path dir_end_effectors = "./data/end_effectors";
+static const boost::filesystem::path dir_cameras = "./data/cameras";
+static const boost::filesystem::path dir_objects = "./data/objects";
+static const boost::filesystem::path dir_static_objects = "./data/static_objects";
+static const boost::filesystem::path dir_robots = "./data/robots";
+static const boost::filesystem::path dir_scenes = "./data/scenes";
 
 class ObjectProperties : public Gtk::ListBox 
 {
@@ -93,7 +93,7 @@ public:
         } else if (parseStacker(active_obj)) {  
         } 
 
-        for (auto e : filesystem::recursive_directory_iterator(dir_base)) { 
+        for (auto e : boost::filesystem::recursive_directory_iterator(dir_base)) { 
             auto filename = e.path().filename().string();
             if (string::npos == filename.find(".urdf")) continue;
             auto row = base_model->append();
@@ -119,7 +119,7 @@ public:
         
         end_effector_model->clear();
 
-        for (auto e : filesystem::recursive_directory_iterator(dir_end_effectors)) { 
+        for (auto e : boost::filesystem::recursive_directory_iterator(dir_end_effectors)) { 
             auto filename = e.path().filename().string();
             if (string::npos == filename.find(".urdf")) continue;
             auto row = end_effector_model->append();
@@ -243,9 +243,18 @@ public:
             area->set_draw_func(sigc::mem_fun(*this, &AppWindow::area_paint_event));
 
             Camera3D* camera = dynamic_cast<Camera3D*>(scene->get_active_objs()["camera"]);
-            camera->set_calibration("[[2063.6201171875,0.0,966.2369995117188],[0.0,2063.840087890625,590.551025390625],[0.0,0.0,1.0]]","[[-0.03848572352572521,-0.9986251185481502,-0.035591033793917766,0.9516957587752023],[-0.9992461560238449,0.03827916479278677,0.006467241624670584,-0.900332425706558],[-0.005095954886352403,0.03581310018049166,-0.9993455123725961,0.953975140167797],[0.0,0.0,0.0,1.0]]");
-            camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels) {
+            camera->set_calibration("[[2063.6201171875,0.0,966.2369995117188],[0.0,2063.840087890625,590.551025390625],[0.0,0.0,1.0]]","[[0.3628531830784994,0.9314110138721865,-0.02847965532429282,-0.016863659068251248],[-0.9277847294395963,0.36395327882845097,0.08217972163931452,-0.08826361688068722],[0.08690836178698697,-0.0033961842717497525,0.996210521217225,0.07680039731528038],[0,0,0,1]]");
+            camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels,int& width,int& height) {
+                width = 1920,height = 1200;
 
+                rgb_pixels.resize(width * height * 3,0);
+                depth_pixels.resize(width * height,0.0);
+
+                ifstream r("~/Downloads/rgb.dat",ios::binary);
+                r.read((char*)rgb_pixels.data(),rgb_pixels.size());
+                
+                ifstream r2("~/Downloads/depth.dat",ios::binary);
+                r2.read((char*)depth_pixels.data(),depth_pixels.size() * 4);
                 return true;
             });
 

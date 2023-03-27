@@ -128,13 +128,12 @@ struct Robot : public ActiveObject
     string end_effector;
 };
 
-typedef function<bool(vector<unsigned char>&,vector<float>&)> SlotRTT;
 struct Camera3D : public ActiveObject
 {
     Camera3D(Scene* sp,string properties);
-    virtual ~Camera3D() {}
+    virtual ~Camera3D() {rtt_proxy_running=false;}
     const Texture rtt();
-    void set_rtt_func(SlotRTT slot);  //获取真实相机数据，RGB，Depth，点云，点云颜色
+    void set_rtt_func(function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot);  //获取真实相机数据，RGB，Depth，点云，点云颜色
     void set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
     
     vector<unsigned char> rgba_pixels,gray_pixels;
@@ -142,6 +141,7 @@ struct Camera3D : public ActiveObject
     int image_size[2],fov;
     double forcal;
     thread rtt_proxy;
+    bool rtt_proxy_running;
 };
 
 struct Placer : public ActiveObject

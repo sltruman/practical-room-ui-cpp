@@ -1,6 +1,7 @@
 #include "digitaltwin.hpp"
 
 #include <memory>
+#include <fstream>
 using namespace std;
 
 #include "json.h"
@@ -18,6 +19,7 @@ struct Scene::Plugin
 
     asio::io_context io_context;
     asio::local::stream_protocol::socket socket;
+    boost::filesystem::path tmp_path;
     
     int viewport_size[2];
     vector<unsigned char> rgba_pixels;
@@ -48,18 +50,18 @@ void Scene::load(string scene_path) {
             md->backend->wait();
         }
 
-        auto tmp_path = boost::filesystem::temp_directory_path().append("digitaltwin");
-        md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->viewport_size[0]),to_string(md->viewport_size[1]),tmp_path);
+        md->tmp_path = boost::filesystem::temp_directory_path().append("digitaltwin");
+        md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->viewport_size[0]),to_string(md->viewport_size[1]),md->tmp_path);
         cout << "succeded" << endl;
 
         cout << "command:" << "digitaltwin" << ' '
              << scene_path << ' '
              << to_string(md->viewport_size[0]) << ' '
              << to_string(md->viewport_size[1]) << ' '
-             << tmp_path << endl;
+             << md->tmp_path << endl;
 
         auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
-        auto socket_path = tmp_path.append(socket_name);
+        auto socket_path = md->tmp_path / socket_name;
         
         for(int i=0;i<4;i++) {
             cout << "Connecting to digital-twin...";
@@ -292,6 +294,15 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
     copy(pos.begin(),pos.begin(),this->pos.begin());
     copy(rot.begin(),rot.begin(),this->rot.begin());
 }
+bool ActiveObject::set_name(string name)
+{
+    return false;
+}
+
+string ActiveObject::get_name()
+{
+    return name;
+}
 
 void ActiveObject::set_base(string path)
 {
@@ -469,30 +480,51 @@ const Texture Camera3D::rtt() {
     t.height = image_size[1];
     t.rgba_pixels = rgba_pixels.data();
     t.depth_pixels = depth_pixels.data();
-    
     return t;
 }
 
-void Camera3D::set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&)> slot) 
+void Camera3D::set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot) 
 {
-    rtt_proxy = thread([kind,name,f,flot,slot]() {
-        asio::io_context io_context;
+    rtt_proxy_running = true;
+    rtt_proxy = thread([this,slot]() {
+        while(rtt_proxy_running) {
+            asio::io_context io_context;
+            auto sock = (scene->md->tmp_path / ("/" + name + ".sock")).string();
+            cout << sock << endl;
+            unlink(sock.c_str());
+            asio::local::stream_protocol::endpoint ep(sock);
+            asio::local::stream_protocol::acceptor acceptor(io_context, ep);
+            asio::local::stream_protocol::socket socket(io_context);
+            acceptor.accept(socket);
+            system::error_code ec;
+            vector<unsigned char> rgb_pixels;
+            vector<float> depth_pixels;
+            int width,height;
+            if(slot(rgb_pixels,depth_pixels,width,height)) {
+                asio::streambuf res;
+                cout << asio::write(socket,asio::buffer(&width,4)) << endl;
+                cout << asio::write(socket,asio::buffer(&height,4)) << endl;
+                cout << asio::write(socket,asio::buffer(rgb_pixels)) << endl;
+                cout << asio::write(socket,asio::buffer(depth_pixels)) << endl;
+                // for(int y=0;y < height;y++) {
+                //     for(int x=0;x < width;x++) {
+                //         i = y * width * 3 + x * 3
+                //         auto r = rgb_pixels[i];
+                //         auto g = rgb_pixels[i+1];
+                //         auto b = rgb_pixels[i+2];
+                //         i = y * width + x;
+                //         auto d = depth_pixels[i];
+                        
+                //         cout << asio::write(socket,asio::buffer(&height,4)) << endl;
+                //     }
+                // }
 
                 
-        unlink(""); // Remove previous binding.
-        asio::local::stream_protocol::endpoint ep("/tmp/foobar");
-        asio::local::stream_protocol::acceptor acceptor(io_context, ep);
-        asio::local::stream_protocol::socket socket(io_context);
-        acceptor.accept(socket);
-        
-        system::error_code ec;
-        socket.bind(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec)
-        vector<unsigned char> rgb_pixels;
-        vector<float> depth_pixels;
-        if(slot(rgb_pixels,depth_pixels)) {
-    
-        } else {
+            } else {
+                cout << "failed rtt" << endl;
+            }
 
+            acceptor.close();
         }
     });
 }
@@ -573,9 +605,8 @@ Workflow::Workflow(Scene* sp) : scene(sp) {}
 
 void Workflow::add_active_obj_node(string kind,string name,string f,std::function<string()> slot) 
 {
-    proxy_nodes.emplace_back([kind,name,f,flot](){
-
-        slot();
+    proxy_nodes.emplace_back([kind,name,f,slot](){
+        
     });
 }
 
