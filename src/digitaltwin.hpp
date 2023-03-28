@@ -133,7 +133,7 @@ struct Camera3D : public ActiveObject
     Camera3D(Scene* sp,string properties);
     virtual ~Camera3D() {rtt_proxy_running=false;}
     const Texture rtt();
-    void set_rtt_func(function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot);  //获取真实相机数据，RGB，Depth，点云，点云颜色
+    void set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot);  //获取真实相机数据，点云，RGB，Depth
     void set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
     
     vector<unsigned char> rgba_pixels,gray_pixels;
@@ -182,6 +182,7 @@ class Workflow
 {
 public:
     Workflow(Scene* sp);
+    ~Workflow() {proxy_nodes_running = false;}
     void add_active_obj_node(string kind,string name,string f,std::function<string()> slot);
     string get_active_obj_nodes();
     void set(string info);
@@ -192,6 +193,7 @@ public:
 protected:
     Scene* scene;
     list<thread> proxy_nodes;
+    bool proxy_nodes_running;
 };
 
 }

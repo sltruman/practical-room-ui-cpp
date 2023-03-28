@@ -247,24 +247,19 @@ public:
             camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels,int& width,int& height) {
                 width = 1920,height = 1200;
 
-                rgb_pixels.resize(width * height * 3,0);
-                depth_pixels.resize(width * height,0.0);
+                rgb_pixels.resize(width * height * 3,255);
+                depth_pixels.resize(width * height,0.5);
 
-                ifstream r("~/Downloads/rgb.dat",ios::binary);
+                ifstream r("/home/truman/Downloads/rgb.dat",ios::binary);
                 r.read((char*)rgb_pixels.data(),rgb_pixels.size());
                 
-                ifstream r2("~/Downloads/depth.dat",ios::binary);
+                ifstream r2("/home/truman/Downloads/depth.dat",ios::binary);
                 r2.read((char*)depth_pixels.data(),depth_pixels.size() * 4);
                 return true;
             });
 
             workflow->add_active_obj_node("Vision","PickLight","detect",[](){
-                return "[\
-                    [],\
-                    [],\
-                    [],\
-                    [0.0,0.0,0.0,1.0]\
-                ]";
+                return "[[[1.0,0.0,0.0,0.0],[0.0,1.0,0.0,-0.5],[0.0,0.0,1.0,0.0],[0.0,0.0,0.0,1.0]]]";
             });
 
             cout << workflow->get_active_obj_nodes() << endl;
