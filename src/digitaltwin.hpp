@@ -29,6 +29,7 @@ friend class ActiveObject;
 friend class Placer;
 friend class Robot;
 friend class Camera3D;
+friend class Camera3DReal;
 friend class Workflow;
 
 public:
@@ -131,11 +132,25 @@ struct Robot : public ActiveObject
 struct Camera3D : public ActiveObject
 {
     Camera3D(Scene* sp,string properties);
-    virtual ~Camera3D() {rtt_proxy_running=false;}
+    virtual ~Camera3D() {}
+    const Texture rtt();
+    
+    vector<unsigned char> rgba_pixels,gray_pixels;
+    vector<unsigned char> depth_pixels;
+    int image_size[2],fov;
+    double forcal;
+};
+
+struct Camera3DReal : public ActiveObject
+{
+    Camera3DReal(Scene* sp,string properties);
+    virtual ~Camera3DReal() {rtt_proxy_running=false;}
     const Texture rtt();
     void set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot);  //获取真实相机数据，点云，RGB，Depth
+    void draw_point_cloud(string ply_path);
+    void clear_point_cloud();
     void set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
-    
+
     vector<unsigned char> rgba_pixels,gray_pixels;
     vector<unsigned char> depth_pixels;
     int image_size[2],fov;

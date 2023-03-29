@@ -186,6 +186,8 @@ map<string,ActiveObject*> Scene::get_active_objs()
             obj = new Robot(this, description);
         } else if(kind == "Camera3D") {
             obj = new Camera3D(this, description);
+        }  else if(kind == "Camera3DReal") {
+            obj = new Camera3DReal(this, description);
         } else if(kind == "Packer") {
             obj = new Placer(this, description);
         } else {
@@ -227,7 +229,7 @@ RayInfo Editor::ray(double x,double y)
 ActiveObject* Editor::select(string name)
 {
     stringstream req;
-    req << "editor.select(" << name << ")" << endl;
+    req << "editor.select('"<<name<<"')" << endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
 
@@ -237,23 +239,7 @@ ActiveObject* Editor::select(string name)
     cout << json_res.dump() << endl;
     auto properties = json_res.dump();
     auto kind = json_res["kind"].get<string>();
-    
-    ActiveObject* obj = nullptr;
-    
-    if(kind == "Robot") {
-        obj = new Robot(scene, properties);
-    } else if(kind == "Camera3D") {
-        obj = new Camera3D(scene, properties);
-    } else if(kind == "Packer") {
-        obj = new ActiveObject(scene, properties);
-    }
-
-    if(scene->active_objs_by_name.find(name) != scene->active_objs_by_name.end())
-        *scene->active_objs_by_name[name] = *obj;
-    else
-        scene->active_objs_by_name[name] = obj;
-
-    return scene->active_objs_by_name[name];
+    return scene->get_active_objs()[name];
 }
 
 ActiveObject* Editor::add(string base,Vec3 pos,Vec3 rot,Vec3 scale) 
@@ -483,7 +469,32 @@ const Texture Camera3D::rtt() {
     return t;
 }
 
-void Camera3D::set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot) 
+Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties)
+{
+    auto json_properties = json::parse(properties);
+    auto vs = json_properties["image_size"];
+    image_size[0] = vs[0].get<long long>();
+    image_size[1] = vs[1].get<long long>();
+    rgba_pixels.resize(image_size[0]*image_size[1]*4);
+    depth_pixels.resize(image_size[0]*image_size[1]*3);
+}
+
+const Texture Camera3DReal::rtt() {
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].rtt()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+    asio::read(scene->md->socket,asio::buffer(rgba_pixels));
+    asio::read(scene->md->socket,asio::buffer(depth_pixels));
+
+    Texture t;
+    t.width = image_size[0];
+    t.height = image_size[1];
+    t.rgba_pixels = rgba_pixels.data();
+    t.depth_pixels = depth_pixels.data();
+    return t;
+}
+
+void Camera3DReal::set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot) 
 {
     rtt_proxy_running = true;
     rtt_proxy = thread([this,slot]() {
@@ -513,10 +524,17 @@ void Camera3D::set_rtt_func(std::function<bool(vector<unsigned char>&,vector<flo
     });
 }
 
-void Camera3D::set_calibration(string projection_transform,string eye_to_hand_transform) 
+void Camera3DReal::set_calibration(string projection_transform,string eye_to_hand_transform) 
 {
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].set_calibration("<<projection_transform<<","<<eye_to_hand_transform<<")" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Camera3DReal::draw_point_cloud(string ply_path) 
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].draw_point_cloud('"<<ply_path<<"')" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
