@@ -16,7 +16,14 @@ typedef std::array<double,3> Vec3;
 struct Texture
 {
     unsigned char* rgba_pixels;
-    unsigned char* depth_pixels;
+    float* depth_pixels;
+    int width, height;
+};
+
+struct TextureReal
+{
+    unsigned char* rgb_pixels;
+    float* depth_pixels;
     int width, height;
 };
 
@@ -70,7 +77,7 @@ public:
     Editor(Scene* sp);
     RayInfo ray(double x,double y);
     ActiveObject* select(string name);
-    ActiveObject* add(string base,Vec3 pos,Vec3 rot,Vec3 scale);
+    ActiveObject* add(string kind,string base,Vec3 pos,Vec3 rot,float scale);
     void remove(string name);
     void save();
     void set_relation(string parent,string child);
@@ -127,6 +134,9 @@ struct Robot : public ActiveObject
 
     int end_effector_id;
     string end_effector;
+    float speed;
+    vector<float> current_joint_poses,home_joint_poses;
+    Vec3 end_effector_pos,end_effector_rot;
 };
 
 struct Camera3D : public ActiveObject
@@ -136,7 +146,7 @@ struct Camera3D : public ActiveObject
     const Texture rtt();
     
     vector<unsigned char> rgba_pixels,gray_pixels;
-    vector<unsigned char> depth_pixels;
+    vector<float> depth_pixels;
     int image_size[2],fov;
     double forcal;
 };
@@ -144,17 +154,18 @@ struct Camera3D : public ActiveObject
 struct Camera3DReal : public ActiveObject
 {
     Camera3DReal(Scene* sp,string properties);
-    virtual ~Camera3DReal() {rtt_proxy_running=false;}
-    const Texture rtt();
+    virtual ~Camera3DReal();
+    const TextureReal rtt();
     void set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot);  //获取真实相机数据，点云，RGB，Depth
     void draw_point_cloud(string ply_path);
     void clear_point_cloud();
     void set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
 
-    vector<unsigned char> rgba_pixels,gray_pixels;
-    vector<unsigned char> depth_pixels;
-    int image_size[2],fov;
-    double forcal;
+    std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot_rtt;
+    vector<unsigned char> rgb_pixels,gray_pixels;
+    vector<float> depth_pixels;
+    int image_size[2];
+
     thread rtt_proxy;
     bool rtt_proxy_running;
 };
@@ -163,21 +174,21 @@ struct Placer : public ActiveObject
 {
     Placer(Scene* sp,string properties);
     virtual ~Placer() {}
-    string get_workpiece();
+    string get_workpiece() { return ""; }
     void set_workpiece(string base);
-    string get_workpiece_texture();
+    string get_workpiece_texture() { return ""; }
     void set_workpiece_texture(string texture);
     Vec3 get_center();
     void set_center(Vec3 pos);
-    int get_amount();
+    int get_amount() { return 0; }
     void set_amount(int num);
     void get_layout(int& x,int& y,int& z);
     void set_layout(int x,int y,int z);
     float get_interval();
     void set_interval(float seconds);
-    void get_scale_factor(float& max,float& min);
+    void get_scale_factor(float& max,float& min) {}
     void set_scale_factor(float max,float min);
-    string get_place_mode();
+    string get_place_mode() { return ""; }
     void set_place_mode(string place_mode); // random：随机的 tidy：整齐的 layout：整齐的xyz布局
     
     string workpiece,workpiece_texture;
@@ -197,7 +208,7 @@ class Workflow
 {
 public:
     Workflow(Scene* sp);
-    ~Workflow() {proxy_nodes_running = false;}
+    ~Workflow();
     void add_active_obj_node(string kind,string name,string f,std::function<string()> slot);
     string get_active_obj_nodes();
     void set(string info);
@@ -209,6 +220,9 @@ protected:
     Scene* scene;
     list<thread> proxy_nodes;
     bool proxy_nodes_running;
+    
+    struct Plugin;
+    Plugin* md;
 };
 
 }
