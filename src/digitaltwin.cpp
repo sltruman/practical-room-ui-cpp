@@ -550,6 +550,36 @@ const Texture Camera3D::rtt() {
     return t;
 }
 
+void Camera3D::set_rtt_func(std::function<void(vector<unsigned char>,vector<float>,int,int)> slot) { //获取虚拟相机数据，RGB，Depth
+    slot_rtt = slot;
+    rtt_proxy_running = true;
+    rtt_proxy = thread([this]() {
+        asio::io_context io_context;
+        auto sock = (scene->md->tmp_path / ("/" + name + ".sock")).string();
+        cout << sock << endl;
+        unlink(sock.c_str());
+        asio::local::stream_protocol::endpoint ep(sock);
+        asio::local::stream_protocol::acceptor acceptor(io_context, ep);
+        asio::local::stream_protocol::socket socket(io_context);
+        acceptor.non_blocking(true);
+
+        while(rtt_proxy_running) {
+            asio::local::stream_protocol::socket socket(io_context);
+            system::error_code ec;
+            acceptor.accept(socket,ec);
+            
+            if(ec == asio::error::would_block) {
+                this_thread::sleep_for(chrono::seconds(1));
+                continue;
+            }
+
+            slot_rtt(rgba_pixels,depth_pixels,image_size[0],image_size[1]);
+        }
+
+        acceptor.close();
+    });
+}  
+
 Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
@@ -630,20 +660,6 @@ void Camera3DReal::set_calibration(string projection_transform,string eye_to_han
 {
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].set_calibration("<<projection_transform<<","<<eye_to_hand_transform<<")" << endl;
-    asio::write(scene->md->socket,asio::buffer(req.str()));
-}
-
-void Camera3DReal::draw_point_cloud(string ply_path) 
-{
-    stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].draw_point_cloud('"<<ply_path<<"')" << endl;
-    asio::write(scene->md->socket,asio::buffer(req.str()));
-}
-
-void Camera3DReal::clear_point_cloud() 
-{
-    stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].clear_point_cloud()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 

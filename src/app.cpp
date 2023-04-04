@@ -244,30 +244,28 @@ public:
             workflow = new Workflow(scene);
             area->set_draw_func(sigc::mem_fun(*this, &AppWindow::area_paint_event));
             Robot* robot = dynamic_cast<Robot*>(scene->get_active_objs()["robot"]);
-            robot->set_speed(1);
 
-            Camera3DReal* camera = dynamic_cast<Camera3DReal*>(scene->get_active_objs()["camera"]);
-            camera->set_calibration("[[2386.949951171875,0.0,958.0789794921875],[0.0,2387.72998046875,592.3880004882812],[0.0,0.0,1.0]]","[[0.012045431565889237,-0.9963825417538582,0.0841233503048198,0.843262100443451],[-0.9981277782965279,-0.0069359059817215435,0.06076867121344931,-0.24051072417692707],[-0.05996537143408696,-0.08469783761307398,-0.9946006387150644,2.1231023151114683],[0.0,0.0,0.0,1.0]]");
-            //camera->draw_point_cloud("/home/truman/Downloads/20230328191753403.ply");
-            camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels,int& width,int& height) {
-                width = 1920,height = 1200;
+            // Camera3DReal* camera = dynamic_cast<Camera3DReal*>(scene->get_active_objs()["camera"]);
+            // camera->set_calibration("[[2386.949951171875,0.0,958.0789794921875],[0.0,2387.72998046875,592.3880004882812],[0.0,0.0,1.0]]","[[0.012045431565889237,-0.9963825417538582,0.0841233503048198,0.843262100443451],[-0.9981277782965279,-0.0069359059817215435,0.06076867121344931,-0.24051072417692707],[-0.05996537143408696,-0.08469783761307398,-0.9946006387150644,2.1231023151114683],[0.0,0.0,0.0,1.0]]");
+            // camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels,int& width,int& height) {
+            //     width = 1920,height = 1200;
 
-                std::string sRGBFilePath = "/home/truman/Downloads/20230322110752009.png";
-                cv::Mat rgbMat = cv::imread(sRGBFilePath);
-                rgb_pixels = rgbMat.reshape(1,1);
+            //     std::string sRGBFilePath = "/home/truman/Downloads/20230322110752009.png";
+            //     cv::Mat rgbMat = cv::imread(sRGBFilePath);
+            //     rgb_pixels = rgbMat.reshape(1,1);
                 
-                std::string sDepthFilePath = "/home/truman/Downloads/20230322110752009.tiff";
-                cv::Mat depthMat = cv::imread(sDepthFilePath, cv::IMREAD_ANYDEPTH);
-                depth_pixels = depthMat.reshape(1,1);
+            //     std::string sDepthFilePath = "/home/truman/Downloads/20230322110752009.tiff";
+            //     cv::Mat depthMat = cv::imread(sDepthFilePath, cv::IMREAD_ANYDEPTH);
+            //     depth_pixels = depthMat.reshape(1,1);
 
-                width = rgbMat.cols;
-                height = rgbMat.rows;
-                return true;
-            });
+            //     width = rgbMat.cols;
+            //     height = rgbMat.rows;
+            //     return true;
+            // });
 
-            workflow->add_active_obj_node("Vision","PickLight","detect",[](){
-                return "[[[-0.9333044468271673,0.3576959411082929,-0.03156564814709442,-0.08280961187839626],[-0.3581202211530655,-0.9207478721106246,0.15483290254520626,0.009754536661125034],[0.02631910113602481,0.15581053339644624,0.987436248067052,1.7632407374874641],[0.0,0.0,0.0,1.0]],[[0.9377464145361356,0.34678003294782883,0.019371052345799746,-0.0829234219229828],[0.3453403887104857,-0.9250012663072957,-0.15846967457758995,0.010211826346563539],[-0.03703587492105759,0.15529397596619393,-0.987173787332339,1.764949618808165],[0.0,0.0,0.0,1.0]],[[-0.9039541349738167,0.42636694034763034,0.032834751986227616,-0.0809051362298259],[-0.4246454366778648,-0.9040513209280758,0.048656209700343483,0.007846503161397346],[0.050429704055117056,0.030039852256342082,0.9982757202416377,1.7620789310904523],[0.0,0.0,0.0,1.0]]]";
-            });
+            // workflow->add_active_obj_node("Vision","PickLight","detect",[](){
+            //     return "[[[-0.9333044468271673,0.3576959411082929,-0.03156564814709442,-0.08280961187839626],[-0.3581202211530655,-0.9207478721106246,0.15483290254520626,0.009754536661125034],[0.02631910113602481,0.15581053339644624,0.987436248067052,1.7632407374874641],[0.0,0.0,0.0,1.0]],[[0.9377464145361356,0.34678003294782883,0.019371052345799746,-0.0829234219229828],[0.3453403887104857,-0.9250012663072957,-0.15846967457758995,0.010211826346563539],[-0.03703587492105759,0.15529397596619393,-0.987173787332339,1.764949618808165],[0.0,0.0,0.0,1.0]],[[-0.9039541349738167,0.42636694034763034,0.032834751986227616,-0.0809051362298259],[-0.4246454366778648,-0.9040513209280758,0.048656209700343483,0.007846503161397346],[0.050429704055117056,0.030039852256342082,0.9982757202416377,1.7620789310904523],[0.0,0.0,0.0,1.0]]]";
+            // });
             
             cout << workflow->get_active_obj_nodes() << endl;
             auto controller = Gtk::EventControllerLegacy::create();
@@ -405,7 +403,8 @@ int main(int argc, char* argv[])
     textdomain("digitaltwin");
 
     app->signal_activate().connect([app]() {
-        auto builder = Gtk::Builder::create_from_resource("/app.glade");
+        // auto builder = Gtk::Builder::create_from_resource("/app.glade");
+        auto builder = Gtk::Builder::create_from_file("./app.glade");
         app->add_window(*Gtk::Builder::get_widget_derived<AppWindow>(builder,"app_window"));
     });
 
