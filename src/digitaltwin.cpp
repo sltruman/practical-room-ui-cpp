@@ -205,8 +205,10 @@ map<string,ActiveObject*> Scene::get_active_objs()
             obj = new Camera3D(this, description);
         }  else if(kind == "Camera3DReal") {
             obj = new Camera3DReal(this, description);
-        } else if(kind == "Packer") {
+        } else if(kind == "Placer") {
             obj = new Placer(this, description);
+        } else if(kind == "Stacker") {
+            obj = new Stacker(this, description);
         } else {
             obj = new ActiveObject(this, description);
         }
@@ -342,14 +344,11 @@ string ActiveObject::get_name()
 
 void ActiveObject::set_base(string path)
 {
+    base = path;
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].set_base('"<<path<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
-    asio::streambuf res;
-    asio::read_until(scene->md->socket, res,'\n');
-    cout << res.data().data() << endl;
-    base = path;
 }
 
 string ActiveObject::get_base() { return this->base; }
@@ -713,36 +712,38 @@ Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
 
 void Placer::set_workpiece(string base)
 {
+    workpiece = base;
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].workpiece = " << base << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_workpiece('"<<base<<"')" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_workpiece_texture(string img_path)
 {
+    workpiece_texture = img_path;
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].workpiece_texture = " << img_path << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_workpiece_texture('"<<img_path<<"')" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_center(Vec3 pos)
 {
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].center = [" << pos[0] << ',' << pos[0] << ',' << pos[2] << ']' << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_center([" << pos[0] << ',' << pos[0] << ',' << pos[2] << "])" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_amount(int num)
 {
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].amount = " << num << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_amount("<<num<<")" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
 void Placer::set_interval(float seconds)
 {
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].interval = " << seconds << endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_interval("<<seconds<<")" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
@@ -764,6 +765,12 @@ void Placer::get_layout(int& x,int& y,int& z)
 void Placer::set_layout(int x,int y,int z)
 {
     
+}
+
+Stacker::Stacker(Scene* sp,string properties) : ActiveObject(sp,properties) {
+    auto json_properties = json::parse(properties);
+    auto pos = json_properties["center"];
+    copy(pos.begin(),pos.end(),center.begin());
 }
 
 Workflow::Workflow(Scene* sp) : scene(sp) {

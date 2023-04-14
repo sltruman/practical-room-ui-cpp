@@ -53,132 +53,103 @@
               <object class="GtkScrolledWindow" id="template_view">
                 <child>
                   <object class="GtkFlowBox" id="template_list">
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkButton">
-                        <child>
-                          <object class="GtkImage">
-                            <property name="file">/home/truman/Pictures/1.jpg</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
+                    <!-- <property name="homogeneous">True</property> -->
+                    <property name="column-spacing">10</property>
+                    <property name="row-spacing">10</property>
+                    <property name="valign">GTK_ALIGN_START</property>
+                    <property name="max-children-per-line">20</property>
+                    <property name="homogeneous">True</property>
+                    
+                            <child>
+                              <object class="GtkButton">
+                                <property name="width-request">200</property>
+                                <property name="height-request">150</property>
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="pixel-size">150</property>
+                                        <property name="icon-name">application-x-appliance-symbolic</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">深度图</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  
+                                </child>
+                              </object>
+                            </child>
+
+                            <child>
+                              <object class="GtkButton">
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="pixel-size">150</property>
+                                        <property name="icon-name">application-x-appliance-symbolic</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">姿态估计</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  
+                                </child>
+                              </object>
+                            </child>
+
+                            <child>
+                              <object class="GtkButton">
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="pixel-size">150</property>
+                                        <property name="icon-name">application-x-appliance-symbolic</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">混合拆垛</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                  
+                                </child>
+                              </object>
+                            </child>
+
+                            <child>
+                              <object class="GtkButton">
+                                <child>
+                                  <object class="GtkBox">
+                                    <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
+                                    <child>
+                                      <object class="GtkImage">
+                                        <property name="pixel-size">150</property>
+                                        <property name="icon-name">application-x-appliance-symbolic</property>
+                                      </object>
+                                    </child>
+                                    <child>
+                                      <object class="GtkLabel">
+                                        <property name="label">无序抓取</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                              </object>
+                            </child>
+
+
                   </object>
                 </child>
               </object>

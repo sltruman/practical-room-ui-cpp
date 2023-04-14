@@ -214,6 +214,8 @@ class Stacker : public ActiveObject
 public:
     Stacker(Scene* sp,string properties);
     virtual ~Stacker() {}
+    
+    Vec3 center;
 };
 
 class Workflow

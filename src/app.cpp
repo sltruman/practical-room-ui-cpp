@@ -28,9 +28,7 @@ struct TemplateView : public Gtk::ScrolledWindow
         : Gtk::ScrolledWindow(cobject)
         , template_list(builder->get_widget<Gtk::FlowBox>("template_list"))
     {
-        for (int i=0;i<100;i++) {
-            // template_list->append(*new Gtk::Label("123"));
-        }
+        
     }
 };
 
