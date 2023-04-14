@@ -1,3 +1,6 @@
+#ifndef DIGITALTWIN_HPP
+#define DIGITALTWIN_HPP
+
 #include <string>
 #include <iostream>
 #include <vector>
@@ -43,6 +46,7 @@ public:
     Scene(int width,int height,string scene_path);
     ~Scene();
     void load(string scene_path);
+    void save();
     const Texture rtt();
     void play(bool run);
     void rotate(double x,double y);
@@ -79,7 +83,6 @@ public:
     ActiveObject* select(string name);
     ActiveObject* add(string kind,string base,Vec3 pos,Vec3 rot,float scale);
     void remove(string name);
-    void save();
     void set_relation(string parent,string child);
     list<Relation> get_relations();
 
@@ -106,16 +109,20 @@ struct ActiveObject
     void set_transparence(float value);
     float get_transparence();
     string get_kind();
+    void set_user_data(string value);
+    string get_user_data();
 
     Scene* scene;
     string name,kind,base;
     Vec3 pos,rot;
+    string user_data;
 };
 
 struct Robot : public ActiveObject
 {
     Robot(Scene* sp,string properties);
     virtual ~Robot() {}
+
     void set_end_effector(string path);
     string get_end_effector();
     void digital_output(bool pickup);
@@ -146,6 +153,8 @@ struct Camera3D : public ActiveObject
     const Texture rtt();
     void set_rtt_func(std::function<void(vector<unsigned char>,vector<float>,int,int)> slot);  //获取虚拟相机数据，RGB，Depth
     std::function<void(vector<unsigned char>,vector<float>,int,int)> slot_rtt;
+    void clear();
+    
     vector<unsigned char> rgba_pixels;
     vector<float> depth_pixels;
     int image_size[2],fov;
@@ -162,6 +171,7 @@ struct Camera3DReal : public ActiveObject
     const TextureReal rtt();
     void set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot);  //获取真实相机数据，点云，RGB，Depth
     void set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
+    void clear();
 
     std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot_rtt;
     vector<unsigned char> rgb_pixels;
@@ -228,3 +238,5 @@ protected:
 };
 
 }
+
+#endif

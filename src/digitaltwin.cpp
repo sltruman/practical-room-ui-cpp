@@ -36,6 +36,7 @@ Scene::Scene(int width,int height,string scene_path)
 
 Scene::~Scene()
 {
+    for(auto kv : active_objs_by_name) delete kv.second;
     md->socket.close();
     delete md;
 }
@@ -181,6 +182,7 @@ map<string,ActiveObject*> Scene::get_active_objs()
 {
     stringstream req;
     req << "scene.get_active_obj_properties()" << endl;
+    cout << req.str() << endl;
     asio::write(md->socket,asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(md->socket, res,'\n');
@@ -266,9 +268,10 @@ ActiveObject* Editor::add(string kind,string base,Vec3 pos,Vec3 rot,float scale)
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
     auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
     auto name = json_res["name"].get<string>();
-    cout << json_res["name"].get<string>() << endl;
-    return scene->get_active_objs()[name];
+    auto objs = scene->get_active_objs();
+    return objs[name];
 }
 
 void Editor::remove(string name) 
@@ -293,11 +296,11 @@ list<Relation> Editor::get_relations()
     return {};
 }
 
-void Editor::save() 
+void Scene::save() 
 {
     stringstream req;
-    req << "editor.save()" << endl;
-    asio::write(scene->md->socket,asio::buffer(req.str()));
+    req << "scene.save()" << endl;
+    asio::write(md->socket,asio::buffer(req.str()));
 }
 
 ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
@@ -310,15 +313,25 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
     auto rot = json_properties["rot"];
     copy(pos.begin(),pos.begin(),this->pos.begin());
     copy(rot.begin(),rot.begin(),this->rot.begin());
+
+    if(json_properties.contains("user_data")) {
+        user_data = json_properties["user_data"].get<string>().c_str();
+    }
 }
 
 bool ActiveObject::set_name(string new_name)
 {
-    if(scene->active_objs_by_name.end() != scene->active_objs_by_name.find(new_name)) return false;
+    auto it = scene->active_objs_by_name.find(new_name);
+    if(scene->active_objs_by_name.end() != it) return false;
+    
     stringstream req;
     req << "editor.rename('"<<this->name<<"','"<<new_name<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
+    
+    scene->active_objs_by_name.erase(name);
+    scene->active_objs_by_name[new_name] = this;
+    name = new_name;
     return true;
 }
 
@@ -398,28 +411,54 @@ string ActiveObject::get_kind()
     return kind;
 }
 
+void ActiveObject::set_user_data(string value)
+{
+    user_data = value;
+
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_user_data('" << value << "')"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+}
+
+string ActiveObject::get_user_data()
+{
+    return user_data;
+}
+
 Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
     end_effector = json_properties["end_effector"].get<string>();
-    speed = json_properties["speed"].get<float>();
-}
 
-void Robot::set_end_effector(string path)
-{
+    if(json_properties.contains("speed")) 
+        speed = json_properties["speed"].get<float>();
+    else 
+        speed = 1.0;
+    end_effector_pos = {0,0,0};
+    end_effector_rot = {0,0,0};
+    
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector('"<<path<<"')"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].get_joints()"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    cout << res.data().data() << endl;
-    end_effector = path;
-    
-    istream i(&res); i >> end_effector_id;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    current_joint_poses.clear();
+    for(auto& item : json_res) current_joint_poses.push_back(item);
 }
 
-string Robot::get_end_effector() { return this->end_effector; }
+void Robot::set_end_effector(string path)
+{
+    end_effector = path;
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector('"<<path<<"')"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+}
+
+string Robot::get_end_effector() { return end_effector; }
 
 void Robot::digital_output(bool pickup) 
 {
@@ -431,15 +470,6 @@ void Robot::digital_output(bool pickup)
 
 int Robot::get_joints_num()
 {
-    stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].get_joints()"<<endl;
-    cout << req.str();
-    asio::write(scene->md->socket,  asio::buffer(req.str()));
-    asio::streambuf res;
-    asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    current_joint_poses.clear();
-    for(auto& item : json_res) current_joint_poses.push_back(item);
     return current_joint_poses.size();
 }
 
@@ -530,7 +560,7 @@ Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
     image_size[0] = vs[0].get<long long>();
     image_size[1] = vs[1].get<long long>();
     rgba_pixels.resize(image_size[0]*image_size[1]*4);
-    depth_pixels.resize(image_size[0]*image_size[1]*4);
+    depth_pixels.resize(image_size[0]*image_size[1]);
     fov = json_properties["fov"].get<long long>();
     forcal = json_properties["forcal"].get<double>();
 }
@@ -573,6 +603,8 @@ void Camera3D::set_rtt_func(std::function<void(vector<unsigned char>,vector<floa
                 continue;
             }
 
+            asio::read(socket,asio::buffer(rgba_pixels));
+            asio::read(socket,asio::buffer(depth_pixels));
             slot_rtt(rgba_pixels,depth_pixels,image_size[0],image_size[1]);
         }
 
@@ -580,14 +612,21 @@ void Camera3D::set_rtt_func(std::function<void(vector<unsigned char>,vector<floa
     });
 }  
 
+void Camera3D::clear() 
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].clear_point_cloud()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
 Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
     auto vs = json_properties["image_size"];
     image_size[0] = vs[0].get<long long>();
     image_size[1] = vs[1].get<long long>();
-    rgb_pixels.resize(image_size[0]*image_size[1]*4);
-    depth_pixels.resize(image_size[0]*image_size[1]*4);
+    rgb_pixels.resize(image_size[0]*image_size[1]*3);
+    depth_pixels.resize(image_size[0]*image_size[1]);
 }
 
 Camera3DReal::~Camera3DReal()
@@ -597,20 +636,15 @@ Camera3DReal::~Camera3DReal()
 }
 
 const TextureReal Camera3DReal::rtt() {
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].rtt()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+
     TextureReal t;
-
-    if(slot_rtt(rgb_pixels,depth_pixels,image_size[0],image_size[1])) {
-        t.width = image_size[0];
-        t.height = image_size[1];
-        t.rgb_pixels = rgb_pixels.data();
-        t.depth_pixels = depth_pixels.data();
-    } else {
-        t.depth_pixels = nullptr;
-        t.rgb_pixels = nullptr;
-        t.width = 0;
-        t.height = 0;
-    }
-
+    t.width = image_size[0];
+    t.height = image_size[1];
+    t.rgb_pixels = rgb_pixels.data();
+    t.depth_pixels = depth_pixels.data();
     return t;
 }
 
@@ -639,12 +673,9 @@ void Camera3DReal::set_rtt_func(std::function<bool(vector<unsigned char>&,vector
                 continue;
             }
             
-            vector<unsigned char> rgb_pixels;
-            vector<float> depth_pixels;
-            int width,height;
-            if(slot_rtt(rgb_pixels,depth_pixels,width,height)) {
-                asio::write(socket,asio::buffer(&width,4));
-                asio::write(socket,asio::buffer(&height,4));
+            if(slot_rtt(rgb_pixels,depth_pixels,image_size[0],image_size[1])) {
+                asio::write(socket,asio::buffer(&image_size[0],4));
+                asio::write(socket,asio::buffer(&image_size[1],4));
                 asio::write(socket,asio::buffer(rgb_pixels));
                 asio::write(socket,asio::buffer(depth_pixels));  
             } else {
@@ -660,6 +691,13 @@ void Camera3DReal::set_calibration(string projection_transform,string eye_to_han
 {
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].set_calibration("<<projection_transform<<","<<eye_to_hand_transform<<")" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Camera3DReal::clear() 
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].clear_point_cloud()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 }
 
@@ -761,10 +799,10 @@ void Workflow::add_active_obj_node(string kind,string name,string f,std::functio
                 this_thread::sleep_for(chrono::seconds(1));
                 continue;
             }
-                    
+            
             auto pickposes = slot();
             if(pickposes.empty()) {
-                cout << "failed rtt" << endl;
+                cout << "empty pickposes" << endl;
             } else {
                 stringstream req;
                 req << pickposes << endl;

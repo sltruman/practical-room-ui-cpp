@@ -4,7 +4,6 @@
 #include <gtkmm.h>
 #include <gtkmm/eventcontrollerlegacy.h>
 
-
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -19,188 +18,224 @@ using namespace boost;
 #include "digitaltwin.hpp"
 using namespace digitaltwin;
 
-static const boost::filesystem::path dir_data = "./data";
-static const boost::filesystem::path dir_workpieces = "./data/workpieces";
-static const boost::filesystem::path dir_end_effectors = "./data/end_effectors";
-static const boost::filesystem::path dir_cameras = "./data/cameras";
-static const boost::filesystem::path dir_objects = "./data/objects";
-static const boost::filesystem::path dir_static_objects = "./data/static_objects";
-static const boost::filesystem::path dir_robots = "./data/robots";
-static const boost::filesystem::path dir_scenes = "./data/scenes";
+#include "scene_view.hpp"
 
-class ObjectProperties : public Gtk::ListBox 
+struct TemplateView : public Gtk::ScrolledWindow
 {
-public:
-    ObjectProperties(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
-        : Gtk::ListBox(cobject),builder(builder)
+    Glib::RefPtr<Gtk::FlowBox> template_list;
+
+    TemplateView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+        : Gtk::ScrolledWindow(cobject)
+        , template_list(builder->get_widget<Gtk::FlowBox>("template_list"))
     {
-        auto dropdown_base = builder->get_widget<Gtk::ComboBox>("base");
-
-        Gtk::TreeModel::ColumnRecord columns;
-        columns.add(col_key);
-        columns.add(col_value);
-
-        base_model = Gtk::ListStore::create(columns);
-        dropdown_base->set_model(base_model);
-        dropdown_base->pack_start(col_key);
-
-        auto dropdown_end_effector = builder->get_widget<Gtk::ComboBox>("end_effector");
-
-        end_effector_model = Gtk::ListStore::create(columns);
-        dropdown_end_effector->set_model(end_effector_model);
-        dropdown_end_effector->pack_start(col_key);
-    }
-
-    Gtk::TreeModelColumn<string> col_key,col_value;
-    Glib::RefPtr<Gtk::ListStore> base_model,end_effector_model;
-    sigc::connection base_signal_changed,end_effector_signal_changed,rtt_signal_click;
-
-    void parse(ActiveObject* active_obj)
-    {
-        auto entry_kind = builder->get_widget<Gtk::Label>("kind");
-        auto dropdown_base = builder->get_widget<Gtk::ComboBox>("base");
-        auto spin_x = builder->get_object<Gtk::SpinButton>("x");
-        auto spin_y = builder->get_object<Gtk::SpinButton>("y");
-        auto spin_z = builder->get_object<Gtk::SpinButton>("z");
-        auto spin_roll = builder->get_object<Gtk::SpinButton>("roll");
-        auto spin_pitch = builder->get_object<Gtk::SpinButton>("pitch");
-        auto spin_yaw = builder->get_object<Gtk::SpinButton>("yaw");
-        auto row_end_effector = builder->get_widget<Gtk::ListBoxRow>("row_end_effector");
-        auto row_width = builder->get_widget<Gtk::ListBoxRow>("row_width");
-        auto row_height = builder->get_widget<Gtk::ListBoxRow>("row_height");
-        auto row_rtt = builder->get_widget<Gtk::ListBoxRow>("row_rtt");
-        for(auto lbr : vector<Gtk::ListBoxRow*>{ row_end_effector,row_width,row_height,row_rtt }) lbr->set_visible(false);
-
-        spin_x->set_value(active_obj->pos[0]);
-        spin_y->set_value(active_obj->pos[1]);
-        spin_z->set_value(active_obj->pos[2]);
-        spin_roll->set_value(active_obj->rot[0]);
-        spin_pitch->set_value(active_obj->rot[1]);
-        spin_yaw->set_value(active_obj->rot[2]);
-        entry_kind->set_text(active_obj->kind);
-        
-        base_signal_changed.disconnect();
-        base_model->clear();
-
-        auto dir_base = dir_objects;
-        if(parseRobot(active_obj)) {
-            row_end_effector->set_visible();
-            dir_base = dir_robots;
-        } else if (parseCamera(active_obj)) {
-            row_width->set_visible();
-            row_height->set_visible();
-            row_rtt->set_visible();
-            dir_base = dir_cameras;
-        } else if (parsePacker(active_obj)) {
-        } else if (parseStacker(active_obj)) {  
-        } 
-
-        for (auto e : boost::filesystem::recursive_directory_iterator(dir_base)) { 
-            auto filename = e.path().filename().string();
-            if (string::npos == filename.find(".urdf")) continue;
-            auto row = base_model->append();
-            row->set_value(col_key, e.path().filename().string());
-            row->set_value(col_value, e.path().string());
-            cout << e.path().string() << endl;
-            if(active_obj->base == e.path()) dropdown_base->set_active(row);
+        for (int i=0;i<100;i++) {
+            // template_list->append(*new Gtk::Label("123"));
         }
+    }
+};
 
-        base_signal_changed = dropdown_base->signal_changed().connect([active_obj,dropdown_base,this]() {
-            auto model = dropdown_base->get_model();
-            auto row = dropdown_base->get_active();
-            active_obj->set_base(row->get_value(col_value));
-        });
+struct SceneView : public Gtk::Overlay 
+{
+    SceneView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+        : Gtk::Overlay(cobject)
+    {
+        area = builder->get_widget<Gtk::DrawingArea>("simulation");
+        right_side_pannel = builder->get_widget<Gtk::ScrolledWindow>("right_side_pannel");
+        properties = Gtk::Builder::get_widget_derived<ObjectProperties>(builder,"properties");
     }
 
-    bool parseRobot(ActiveObject* active_obj)
+    ~SceneView()
     {
-        auto robot = dynamic_cast<Robot*>(active_obj);
-        if(robot == nullptr) return false;
-        auto dropdown_end_effector = builder->get_widget<Gtk::ComboBox>("end_effector");
-        end_effector_signal_changed.disconnect();
-        
-        end_effector_model->clear();
-
-        for (auto e : boost::filesystem::recursive_directory_iterator(dir_end_effectors)) { 
-            auto filename = e.path().filename().string();
-            if (string::npos == filename.find(".urdf")) continue;
-            auto row = end_effector_model->append();
-            row->set_value(col_key, e.path().filename().string());
-            row->set_value(col_value, e.path().string());
-            cout << e.path().string() << endl;
-            if(robot->end_effector == e.path()) dropdown_end_effector->set_active(row);
-        }
-
-        end_effector_signal_changed = dropdown_end_effector->signal_changed().connect([robot,dropdown_end_effector,this]() {
-            auto model = dropdown_end_effector->get_model();
-            auto row = dropdown_end_effector->get_active();
-            robot->set_end_effector(row->get_value(col_value));
-        });
-
-        return true;
+        delete workflow;
+        delete editor;
+        delete scene;
     }
 
-    bool parseCamera(ActiveObject* active_obj)
-    {
-        auto obj = dynamic_cast<Camera3D*>(active_obj);
-        if(obj == nullptr) return false;
+    // void open() {
+    //     auto dialog = make_shared<Gtk::FileChooserDialog>("Please choose a file",Gtk::FileChooser::Action::OPEN);
+    //     dialog->add_button("_Open", Gtk::ResponseType::OK);
+    //     dialog->set_transient_for(*this);
+    //     dialog->set_modal();
+    //     dialog->set_visible();
+    //     auto filter_text = Gtk::FileFilter::create();
+    //     filter_text->set_name("*.json");
+    //     filter_text->add_pattern("*.json");
+    //     dialog->add_filter(filter_text);
+    //     dialog->signal_response().connect([this,dialog](int response_id) {
+    //         dialog->close();
 
-        auto spin_width = builder->get_object<Gtk::SpinButton>("fov");
-        auto spin_height = builder->get_object<Gtk::SpinButton>("forcal");
-        auto btn_rtt = builder->get_object<Gtk::Button>("rtt");
-        auto area_texture = builder->get_object<Gtk::Picture>("texture");
-        auto area_texture2 = builder->get_object<Gtk::Picture>("texture_depth");
-        spin_width->set_value(obj->fov);
-        spin_height->set_value(obj->forcal);
+    //         if(response_id != Gtk::ResponseType::OK) return;
+    //         auto scene_path = dialog->get_file()->get_path();
+    //         cout << response_id << ' ' << dialog->get_file()->get_path() << endl;
+            
+    //         scene = new Scene(800,640,scene_path);
+    //         editor = new Editor(scene);
+    //         workflow = new Workflow(scene);
+    //         scene_view->area->set_draw_func(sigc::mem_fun(*scene_view, &SceneView::area_paint_event));
+    //         // Robot* robot = dynamic_cast<Robot*>(scene->get_active_objs()["robot"]);
 
-        auto rtt = [obj,area_texture,area_texture2]() {
-            auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
-            int area_w = area_texture->get_width();
-            int area_h = area_w / aspect_ratio_viewport;
-            auto texture = obj->rtt();
-            auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
-            area_texture->set_pixbuf(img);
-            // auto img2 = Gdk::Pixbuf::create_from_data(texture.depth_pixels,Gdk::Colorspace::RGB,false,8,texture.width,texture.height,texture.width*3);
-            // area_texture2->set_pixbuf(img2);
-            area_texture->set_size_request(area_w,area_h);
-            // area_texture2->set_size_request(area_w,area_h);
-        };
+    //         // Camera3D* camera = dynamic_cast<Camera3D*>(scene->get_active_objs()["camera"]);
+    //         // camera->set_rtt_func([](vector<unsigned char> rgba_pixels,vector<float> depth_pixels,int width,int height) {
+    //         //     cv::Mat rgba = cv::Mat::zeros(cv::Size(width,height),CV_8UC4);
+    //         //     memcpy(rgba.ptr<unsigned char>(),rgba_pixels.data(),rgba_pixels.size());
+    //         //     cv::cvtColor(rgba,rgba,cv::COLOR_RGBA2BGRA);
 
-        if(!area_texture->get_paintable()) {
-            Glib::signal_timeout().connect_once([area_texture,area_texture2,obj]() {
-                auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
-                int area_w = area_texture->get_width();
-                int area_h = area_w / aspect_ratio_viewport;
-                auto img = Gdk::Pixbuf::create(Gdk::Colorspace::RGB, false, 8, obj->image_size[0],obj->image_size[1]);
+    //         //     cv::Mat depth = cv::Mat::zeros(cv::Size(width,height),CV_32FC1);
+    //         //     memcpy(depth.ptr<unsigned char>(),depth_pixels.data(),depth_pixels.size() * 4);
+    //         //     cv::Mat gray = cv::Mat::zeros(cv::Size(width,height),CV_8UC1);
+    //         //     depth.convertTo(gray, CV_8U, 255.0);
+    //         //     cv::imwrite("rgba.png",rgba);
+    //         //     cv::imwrite("depth.png",gray);
+    //         // });
+            
+    //         // Camera3DReal* camera = dynamic_cast<Camera3DReal*>(scene->get_active_objs()["camera"]);
+    //         // camera->set_calibration("[[3507.176621132752,0.0,1218.55397352377],[0.0,3506.5191735910958,1038.1997907533078],[0.0,0.0,1.0]]",
+    //         //                         "[[0.03775400213484963,0.9992836506766881,-0.002611668637494993,0.18975821360828188],[0.9946931066717141,-0.03783062740787925,-0.09567897976933247,-0.8562761592934359],[-0.09570924126005752,0.0010144556158444772,-0.995408816525767,1.1566388127904739],[0,0,0,1]]");
+
+    //         // camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels,int& width,int& height) {
+    //         //     width = 1920,height = 1200;
+
+    //         //     std::string sRGBFilePath = "/home/truman/Downloads/20230322110752009.png";
+    //         //     cv::Mat rgbMat = cv::imread(sRGBFilePath);
+    //         //     rgb_pixels = rgbMat.reshape(1,1);
                 
-                area_texture->set_pixbuf(img);
-                area_texture2->set_pixbuf(img);
-                area_texture->set_size_request(area_w,area_h);
-                area_texture2->set_size_request(area_w,area_h);
-            },100);
-        }
+    //         //     std::string sDepthFilePath = "/home/truman/Downloads/20230322110752009.tiff";
+    //         //     cv::Mat depthMat = cv::imread(sDepthFilePath, cv::IMREAD_ANYDEPTH);
+    //         //     depth_pixels = depthMat.reshape(1,1);
+
+    //         //     width = rgbMat.cols;
+    //         //     height = rgbMat.rows;
+    //         //     return true;
+    //         // });
+
+    //         // workflow->add_active_obj_node("Vision","PickLight","detect",[](){
+    //         //     return "[[[-0.6109328215852812,-0.770627694607955,-0.18136690351319718,-0.16305102293176799],[-0.7829483866689572,0.6220597556471429,-0.0057755018884309605,-0.03409599941935853],[0.11727181739493445,0.13847249629497058,-0.9833984376293907,1.2207300122066735],[0.0,0.0,0.0,1.0]]]";
+    //         // });
         
-        rtt_signal_click.disconnect();
-        rtt_signal_click = btn_rtt->signal_clicked().connect(rtt);
-        return true;
-    }
+    //         // camera->rtt();
 
-    bool parseStacker(ActiveObject* active_obj) {
-        return true;
-    }
+    //         auto controller = Gtk::EventControllerLegacy::create();
+    //         controller->signal_event().connect(sigc::mem_fun(*scene_view,&SceneView::area_drag_event),false);
+    //         scene_view->add_controller(controller);
+    //     });
+    // }
 
-    bool parsePacker(ActiveObject* active_obj) {
-        return true;
-    }
+    // int handled = 0;
+    // Glib::RefPtr<const Gdk::Event> prev_ev;
+    // bool area_drag_event(const Glib::RefPtr<const Gdk::Event>& ev)
+    // { 
+    //     auto type = ev->get_event_type();
+    //     auto button = ev->get_button();
 
-    Glib::RefPtr<Gtk::Builder> builder;
+    //     switch (type) {
+    //         case Gdk::Event::Type::SCROLL:
+    //             scene->zoom(ev->get_direction() == Gdk::ScrollDirection::UP ? 0.8 : 1.2);
+    //             break;
+    //         case Gdk::Event::Type::BUTTON_PRESS:
+    //             if(handled != 0 && handled != button) break;
+    //             handled = button;
+    //             prev_ev = ev;
+
+    //             if(handled == 1) {
+    //                 // 计算出鼠标位置相对于图片位置的坐标
+    //                 double x,y; ev->get_position(x,y);
+    //                 x -= 14,y -= get_titlebar()->get_height(); //补偿x,y值，这是gtk框架bug
+    //                 if(right_side_pannel->get_allocation().contains_point(x,y)) break;
+
+    //                 auto x_norm = (x / area_zoom_factor - img_x) / img->get_width();
+    //                 auto y_norm = (y / area_zoom_factor - img_y) / img->get_height();
+    //                 auto hit = editor->ray(x_norm,y_norm);
+                    
+    //                 if(!hit.name.empty()) {
+    //                     auto active_obj = editor->select(hit.name);
+    //                     properties->parse(active_obj);
+    //                 }
+                    
+    //                 right_side_pannel->set_visible(!hit.name.empty());
+    //             }
+
+    //             break;
+    //         case Gdk::Event::Type::MOTION_NOTIFY: {
+    //             if(handled == 0) break;
+    //             double x,y; ev->get_position(x,y);
+    //             x -= 14,y -= get_titlebar()->get_height(); //补偿x,y值，这是gtk框架bug
+    //             x =  x / area_zoom_factor - img_x, y = y / area_zoom_factor - img_y;
+                
+    //             // 计算出上一次鼠标位置相对于图片位置的坐标
+    //             double x_prev,y_prev; prev_ev->get_position(x_prev,y_prev);
+    //             x_prev -= 14,y_prev -= get_titlebar()->get_height(); //补偿x,y值，这是gtk框架bug
+    //             x_prev = x_prev / area_zoom_factor - img_x, y_prev = y_prev / area_zoom_factor - img_y;
+
+    //             // 将两次鼠标位置的差值转化为百分比
+    //             auto x_offset_norm = (x - x_prev) / img->get_width();
+    //             auto y_offset_norm = (y - y_prev) / img->get_height();
+
+    //             switch(handled) {
+    //                 case 2:
+    //                     scene->rotate(x_offset_norm,y_offset_norm);
+    //                     break;
+    //                 case 3:
+    //                     scene->pan(x_offset_norm,y_offset_norm);
+    //                     break;
+    //             }
+                
+    //             prev_ev = ev;
+    //             break;
+    //         }
+    //         case Gdk::Event::Type::BUTTON_RELEASE:
+    //             handled = 0;
+    //             break;
+    //     }
+
+    //     return false;
+    // }
+
+    // void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h)
+    // {
+    //     Glib::signal_timeout().connect_once([this]() { area->queue_draw(); }, 1000 / 24);
+        
+    //     cr->set_source_rgb(40 / 255.,40 / 255.,40 / 255.);
+    //     cr->paint();
+
+    //     auto texture = scene->rtt();
+    //     if(texture.rgba_pixels == nullptr) return;
+
+    //     auto aspect_ratio = 1. * texture.width / texture.height;
+    //     auto aspect_ratio2 = 1. * area_w / area_h;
+    //     auto factor = 1.0;
+    //     if (aspect_ratio > aspect_ratio2) factor = 1. * area_w / texture.width;
+    //     else factor = 1. * area_h / texture.height;
+    //     cr->scale(factor,factor);
+ 
+    //     img_x = (area_w / factor - texture.width) / 2;
+    //     img_y = (area_h / factor - texture.height) / 2;
+
+    //     if(!img) img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
+    //     Gdk::Cairo::set_source_pixbuf(cr, img,img_x,img_y);
+    //     cr->paint();
+
+    //     area_zoom_factor = factor;
+    // }
+
+    ObjectProperties* properties;
+    Gtk::ScrolledWindow* right_side_pannel;
+    Gtk::DrawingArea* area;
+    Glib::RefPtr<Gdk::Pixbuf> img;
+    double area_zoom_factor = 1.0,img_x,img_y;
+
+    digitaltwin::Scene* scene;
+    digitaltwin::Editor* editor;
+    digitaltwin::Workflow* workflow;
 };
 
 class AppWindow : public Gtk::ApplicationWindow
 {
 public:
-    AppWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder) 
-        : Gtk::ApplicationWindow(cobject) , builder(builder)
+    AppWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+        : Gtk::ApplicationWindow(cobject)
+        , template_view(Gtk::Builder::get_widget_derived<TemplateView>(builder,"template_view"))
+        , scene_view(Gtk::Builder::get_widget_derived<SceneView>(builder,"scene_view"))
+        , views(builder->get_widget<Gtk::Stack>("views"))
     {
         auto button_open = builder->get_widget<Gtk::Button>("open");
         button_open->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_open_clicked));
@@ -208,190 +243,42 @@ public:
         button_start->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_start_clicked));
         auto button_stop = builder->get_widget<Gtk::Button>("stop");
         button_stop->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_stop_clicked));
-        overlay = builder->get_widget<Gtk::Overlay>("overlay");
-        area = builder->get_widget<Gtk::DrawingArea>("simulation");
-        right_side_pannel = builder->get_widget<Gtk::ScrolledWindow>("right_side_pannel");
-        properties = builder->get_widget_derived<ObjectProperties>(builder,"properties");
+        auto button_workflow = builder->get_widget<Gtk::Button>("workflow");
+        button_workflow->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_workflow_clicked));
     }
 
     ~AppWindow()
     {
-        delete workflow;
-        delete editor;
-        delete scene;
     }
 
     void on_button_open_clicked()
     {
-        auto dialog = make_shared<Gtk::FileChooserDialog>("Please choose a file",Gtk::FileChooser::Action::OPEN);
-        dialog->add_button("_Open", Gtk::ResponseType::OK);
-        dialog->set_transient_for(*this);
-        dialog->set_modal();
-        dialog->set_visible();
-        auto filter_text = Gtk::FileFilter::create();
-        filter_text->set_name("*.json");
-        filter_text->add_pattern("*.json");
-        dialog->add_filter(filter_text);
-        dialog->signal_response().connect([this,dialog](int response_id) {
-            dialog->close();
-
-            if(response_id != Gtk::ResponseType::OK) return;
-            auto scene_path = dialog->get_file()->get_path();
-            cout << response_id << ' ' << dialog->get_file()->get_path() << endl;
-            
-            scene = new Scene(640,480, scene_path);
-            editor = new Editor(scene);
-            workflow = new Workflow(scene);
-            area->set_draw_func(sigc::mem_fun(*this, &AppWindow::area_paint_event));
-            Robot* robot = dynamic_cast<Robot*>(scene->get_active_objs()["robot"]);
-
-            // Camera3DReal* camera = dynamic_cast<Camera3DReal*>(scene->get_active_objs()["camera"]);
-            // camera->set_calibration("[[2386.949951171875,0.0,958.0789794921875],[0.0,2387.72998046875,592.3880004882812],[0.0,0.0,1.0]]","[[0.012045431565889237,-0.9963825417538582,0.0841233503048198,0.843262100443451],[-0.9981277782965279,-0.0069359059817215435,0.06076867121344931,-0.24051072417692707],[-0.05996537143408696,-0.08469783761307398,-0.9946006387150644,2.1231023151114683],[0.0,0.0,0.0,1.0]]");
-            // camera->set_rtt_func([](vector<unsigned char>& rgb_pixels,vector<float>& depth_pixels,int& width,int& height) {
-            //     width = 1920,height = 1200;
-
-            //     std::string sRGBFilePath = "/home/truman/Downloads/20230322110752009.png";
-            //     cv::Mat rgbMat = cv::imread(sRGBFilePath);
-            //     rgb_pixels = rgbMat.reshape(1,1);
-                
-            //     std::string sDepthFilePath = "/home/truman/Downloads/20230322110752009.tiff";
-            //     cv::Mat depthMat = cv::imread(sDepthFilePath, cv::IMREAD_ANYDEPTH);
-            //     depth_pixels = depthMat.reshape(1,1);
-
-            //     width = rgbMat.cols;
-            //     height = rgbMat.rows;
-            //     return true;
-            // });
-
-            // workflow->add_active_obj_node("Vision","PickLight","detect",[](){
-            //     return "[[[-0.9333044468271673,0.3576959411082929,-0.03156564814709442,-0.08280961187839626],[-0.3581202211530655,-0.9207478721106246,0.15483290254520626,0.009754536661125034],[0.02631910113602481,0.15581053339644624,0.987436248067052,1.7632407374874641],[0.0,0.0,0.0,1.0]],[[0.9377464145361356,0.34678003294782883,0.019371052345799746,-0.0829234219229828],[0.3453403887104857,-0.9250012663072957,-0.15846967457758995,0.010211826346563539],[-0.03703587492105759,0.15529397596619393,-0.987173787332339,1.764949618808165],[0.0,0.0,0.0,1.0]],[[-0.9039541349738167,0.42636694034763034,0.032834751986227616,-0.0809051362298259],[-0.4246454366778648,-0.9040513209280758,0.048656209700343483,0.007846503161397346],[0.050429704055117056,0.030039852256342082,0.9982757202416377,1.7620789310904523],[0.0,0.0,0.0,1.0]]]";
-            // });
-            
-            cout << workflow->get_active_obj_nodes() << endl;
-            auto controller = Gtk::EventControllerLegacy::create();
-            controller->signal_event().connect(sigc::mem_fun(*this,&AppWindow::area_drag_event),false);
-            overlay->add_controller(controller);
-        });
-    }
-
-    int handled = 0;
-    Glib::RefPtr<const Gdk::Event> prev_ev;
-    bool area_drag_event(const Glib::RefPtr<const Gdk::Event>& ev)
-    { 
-        auto type = ev->get_event_type();
-        auto button = ev->get_button();
-
-        switch (type) {
-            case Gdk::Event::Type::SCROLL:
-                scene->zoom(ev->get_direction() == Gdk::ScrollDirection::UP ? 0.8 : 1.2);
-                break;
-            case Gdk::Event::Type::BUTTON_PRESS:
-                if(handled != 0 && handled != button) break;
-                handled = button;
-                prev_ev = ev;
-
-                if(handled == 1) {
-                    // 计算出鼠标位置相对于图片位置的坐标
-                    double x,y; ev->get_position(x,y);
-                    x -= 14,y -= get_titlebar()->get_height(); //补偿x,y值，这是gtk框架bug
-                    if(right_side_pannel->get_allocation().contains_point(x,y)) break;
-
-                    auto x_norm = (x / area_zoom_factor - img_x) / img->get_width();
-                    auto y_norm = (y / area_zoom_factor - img_y) / img->get_height();
-                    auto hit = editor->ray(x_norm,y_norm);
-                    
-                    if(!hit.name.empty()) {
-                        auto active_obj = editor->select(hit.name);
-                        properties->parse(active_obj);
-                    }
-                    
-                    right_side_pannel->set_visible(!hit.name.empty());
-                }
-
-                break;
-            case Gdk::Event::Type::MOTION_NOTIFY: {
-                if(handled == 0) break;
-                double x,y; ev->get_position(x,y);
-                x -= 14,y -= get_titlebar()->get_height(); //补偿x,y值，这是gtk框架bug
-                x =  x / area_zoom_factor - img_x, y = y / area_zoom_factor - img_y;
-                
-                // 计算出上一次鼠标位置相对于图片位置的坐标
-                double x_prev,y_prev; prev_ev->get_position(x_prev,y_prev);
-                x_prev -= 14,y_prev -= get_titlebar()->get_height(); //补偿x,y值，这是gtk框架bug
-                x_prev = x_prev / area_zoom_factor - img_x, y_prev = y_prev / area_zoom_factor - img_y;
-
-                // 将两次鼠标位置的差值转化为百分比
-                auto x_offset_norm = (x - x_prev) / img->get_width();
-                auto y_offset_norm = (y - y_prev) / img->get_height();
-
-                switch(handled) {
-                    case 2:
-                        scene->rotate(x_offset_norm,y_offset_norm);
-                        break;
-                    case 3:
-                        scene->pan(x_offset_norm,y_offset_norm);
-                        break;
-                }
-                
-                prev_ev = ev;
-                break;
-            }
-            case Gdk::Event::Type::BUTTON_RELEASE:
-                handled = 0;
-                break;
-        }
-
-        return false;
-    }
-
-    void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h)
-    {
-        Glib::signal_timeout().connect_once([this]() { area->queue_draw(); }, 1000 / 24);
         
-        cr->set_source_rgb(40 / 255.,40 / 255.,40 / 255.);
-        cr->paint();
-
-        auto texture = scene->rtt();
-        if(texture.rgba_pixels == nullptr) return;
-
-        auto aspect_ratio = 1. * texture.width / texture.height;
-        auto aspect_ratio2 = 1. * area_w / area_h;
-        auto factor = 1.0;
-        if (aspect_ratio > aspect_ratio2) factor = 1. * area_w / texture.width;
-        else factor = 1. * area_h / texture.height;
-        cr->scale(factor,factor);
- 
-        img_x = (area_w / factor - texture.width) / 2;
-        img_y = (area_h / factor - texture.height) / 2;
-
-        if(!img) img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
-        Gdk::Cairo::set_source_pixbuf(cr, img,img_x,img_y);
-        cr->paint();
-
-        area_zoom_factor = factor;
     }
 
     void on_button_start_clicked()
     {
-        workflow->start();
+        // workflow->start();
+        // builder->get_widget<Gtk::Button>("start")->set_visible(false);
+        // builder->get_widget<Gtk::Button>("stop")->set_visible(true);
     }
 
     void on_button_stop_clicked()
     {
-        workflow->stop();
+        // workflow->stop();
+        // builder->get_widget<Gtk::Button>("start")->set_visible(true);
+        // builder->get_widget<Gtk::Button>("stop")->set_visible(false);
+    }
+
+    void on_button_workflow_clicked()
+    {
+
     }
 
     Glib::RefPtr<Gtk::Builder> builder;
-    Gtk::Overlay* overlay;
-    Gtk::DrawingArea* area;
-    Glib::RefPtr<Gdk::Pixbuf> img;
-    double area_zoom_factor = 1.0,img_x,img_y;
-    ObjectProperties* properties;
-    Gtk::ScrolledWindow* right_side_pannel;
-    
-    digitaltwin::Scene* scene;
-    digitaltwin::Editor* editor;
-    digitaltwin::Workflow* workflow;
+    TemplateView* template_view;
+    SceneView* scene_view;
+    Gtk::Stack* views;
 };
 
 int main(int argc, char* argv[])
@@ -405,6 +292,8 @@ int main(int argc, char* argv[])
     app->signal_activate().connect([app]() {
         // auto builder = Gtk::Builder::create_from_resource("/app.glade");
         auto builder = Gtk::Builder::create_from_file("./app.glade");
+        builder->add_from_file("./template_view.glade");
+        builder->add_from_file("./scene_view.glade");
         app->add_window(*Gtk::Builder::get_widget_derived<AppWindow>(builder,"app_window"));
     });
 
