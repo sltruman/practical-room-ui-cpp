@@ -9,10 +9,10 @@
 #include <array>
 #include <functional>
 #include <thread>
-using namespace std;
 
 namespace digitaltwin
 {
+using namespace std;
 
 typedef std::array<double,3> Vec3;
 
@@ -61,7 +61,7 @@ public:
     void draw_collision(bool enable);
 
     map<string,ActiveObject*> get_active_objs();
-    void set_logging(std::function<void(string)> log_callback);
+    void set_log_func(std::function<void(char,string)> slot);
 
 protected:
     struct Plugin;

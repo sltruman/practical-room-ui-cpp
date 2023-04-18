@@ -154,7 +154,7 @@ void Scene::rotete_front()
     asio::write(md->socket,  asio::buffer(req.str()));
 }
 
-void Scene::rotete_back() 
+void Scene::rotete_back()
 {
     stringstream req;
     req << "scene.rotate_back()" << endl;
@@ -170,7 +170,7 @@ void Scene::pan(double x,double y)
     asio::write(md->socket,  asio::buffer(req.str()));
 }
 
-void Scene::zoom(double factor) 
+void Scene::zoom(double factor)
 {
     stringstream req;
     req << "scene.zoom("<< factor <<")" << endl;
@@ -219,7 +219,7 @@ map<string,ActiveObject*> Scene::get_active_objs()
     return active_objs_by_name;
 }
 
-void Scene::set_logging(std::function<void(string)> log_callback)
+void Scene::set_log_func(std::function<void(char,string)> slot)
 {
 
 }

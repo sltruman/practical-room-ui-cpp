@@ -11,7 +11,7 @@
       <object class="GtkHeaderBar" id="header">
         <property name="show-title-buttons">yes</property>
         <child type="start">
-          <object class="GtkStackSwitcher">
+          <object class="GtkStackSwitcher" id="view_switcher">
             <property name="stack">views</property>
           </object>
         </child>
@@ -38,7 +38,7 @@
         </child>
 
         <child type="end">
-          <object class="GtkButton" id="open">
+          <object class="GtkToggleButton" id="anchor">
             <property name="icon-name">view-pin-symbolic</property>
           </object>
         </child>
@@ -46,20 +46,21 @@
     </child>
     <child>
       <object class="GtkStack" id="views">
+        <property name="transition-type">GTK_STACK_TRANSITION_TYPE_CROSSFADE</property>
         <child>
           <object class="GtkStackPage" id="template_page">
+            <property name="name">template_page</property>
             <property name="icon-name">go-previous-symbolic</property>
             <property name="child">
               <object class="GtkScrolledWindow" id="template_view">
                 <child>
                   <object class="GtkFlowBox" id="template_list">
-                    <!-- <property name="homogeneous">True</property> -->
+                    <property name="selection-mode">none</property>
                     <property name="column-spacing">10</property>
                     <property name="row-spacing">10</property>
                     <property name="valign">GTK_ALIGN_START</property>
                     <property name="max-children-per-line">20</property>
                     <property name="homogeneous">True</property>
-                    
                             <child>
                               <object class="GtkButton" id="template_1">
                                 <property name="width-request">200</property>
@@ -79,7 +80,6 @@
                                       </object>
                                     </child>
                                   </object>
-                                  
                                 </child>
                               </object>
                             </child>
@@ -158,8 +158,9 @@
         </child>
         <child>
           <object class="GtkStackPage" id="scene_page">
+            <property name="name">scene_page</property>
             <property name="icon-name">go-next-symbolic</property>
-            <property name="visible">True</property>
+
             <property name="child">
               <object class="GtkOverlay" id="scene_view">
                 <child>
@@ -168,6 +169,8 @@
                 </child>
               </object>
             </property>
+
+
           </object>
         </child>
       </object>
