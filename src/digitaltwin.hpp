@@ -59,6 +59,8 @@ public:
     void zoom(double factor);
     void draw_origin(bool enable);
     void draw_collision(bool enable);
+    void set_ground_z(float z);
+    float get_ground_z();
 
     map<string,ActiveObject*> get_active_objs();
     void set_log_func(std::function<void(char,string)> slot);
@@ -67,6 +69,9 @@ protected:
     struct Plugin;
     Plugin* md;
     map<string,ActiveObject*> active_objs_by_name;
+    thread logging;
+    
+    float ground_z;
 };
 
 struct RayInfo { string name; double pos[3];};
@@ -114,7 +119,7 @@ struct ActiveObject
 
     Scene* scene;
     string name,kind,base;
-    Vec3 pos,rot;
+    Vec3 pos,rot,scale;
     string user_data;
 };
 

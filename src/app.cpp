@@ -26,19 +26,18 @@ struct TemplateView : public Gtk::ScrolledWindow
     sigc::signal<void(string)> signal_selected;
 
     Glib::RefPtr<Gtk::FlowBox> template_list;
-    Glib::RefPtr<Gtk::Button> template_1;
-    Glib::RefPtr<Gtk::Button> template_2;
-    Glib::RefPtr<Gtk::Button> template_3;
-    Glib::RefPtr<Gtk::Button> template_4;
+    Glib::RefPtr<Gtk::Button> template_0,template_1,template_2,template_3,template_4;
 
     TemplateView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
         : Gtk::ScrolledWindow(cobject)
         , template_list(builder->get_widget<Gtk::FlowBox>("template_list"))
+        , template_0(builder->get_widget<Gtk::Button>("template_0"))
         , template_1(builder->get_widget<Gtk::Button>("template_1"))
         , template_2(builder->get_widget<Gtk::Button>("template_2"))
         , template_3(builder->get_widget<Gtk::Button>("template_3"))
         , template_4(builder->get_widget<Gtk::Button>("template_4"))
     {
+        template_0->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/空.json"));
         template_1->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/深度图.json"));
         template_2->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/姿态估计.json"));
         template_3->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/混合拆垛.json"));
@@ -65,19 +64,24 @@ struct SceneView : public Gtk::Overlay
 
     ~SceneView()
     {
-
+        
     }
 
     void open(string scene_path) {
+        img.reset();
         workflow.reset();
         editor.reset();
         scene.reset();
-        img.reset();
 
         scene = make_shared<Scene>(800,640,scene_path);
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
+        scene->set_log_func([](char l,string s){
+            cout << l << ' ' << s << endl;
+        });
+
         area->set_draw_func(sigc::mem_fun(*this, &SceneView::area_paint_event));
+
     }
 
     void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h)
@@ -181,8 +185,8 @@ struct SceneView : public Gtk::Overlay
     ObjectProperties* properties;
     Gtk::ScrolledWindow* right_side_pannel;
     Gtk::DrawingArea* area;
-    Glib::RefPtr<Gdk::Pixbuf> img;
     double area_zoom_factor = 1.0,img_x,img_y;
+    std::shared_ptr<Gdk::Pixbuf> img;
 
     std::shared_ptr<digitaltwin::Scene> scene;
     std::shared_ptr<digitaltwin::Editor> editor;
@@ -240,6 +244,10 @@ public:
     void on_button_workflow_clicked()
     {
         scene_view->workflow->get_active_obj_nodes();
+
+        auto obj = scene_view->editor->add("Robot","data/robots/franka_panda/franka_panda.urdf",{2,0,0},{0,0,0},1);
+        auto pos = obj->get_pos();
+        cout << pos[0] << ' ' << pos[1] << ' ' << pos[2] << endl;
     }
 
     Glib::RefPtr<Gtk::Builder> builder;

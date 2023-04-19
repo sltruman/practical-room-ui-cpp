@@ -24,6 +24,8 @@ struct Scene::Plugin
     int viewport_size[2];
     vector<unsigned char> rgba_pixels;
     std::shared_ptr<process::child> backend;
+    process::ipstream backend_out,backend_err;
+    std::function<void(char,string)> slot_log;
 };
 
 Scene::Scene(int width,int height,string scene_path)
@@ -36,8 +38,9 @@ Scene::Scene(int width,int height,string scene_path)
 
 Scene::~Scene()
 {
-    for(auto kv : active_objs_by_name) delete kv.second;
     md->socket.close();
+    for(auto kv : active_objs_by_name) delete kv.second;
+
     delete md;
 }
 
@@ -52,15 +55,31 @@ void Scene::load(string scene_path) {
         }
 
         md->tmp_path = boost::filesystem::temp_directory_path().append("digitaltwin");
-        md->backend = make_shared<process::child>("digitaltwin",scene_path,to_string(md->viewport_size[0]),to_string(md->viewport_size[1]),md->tmp_path);
-        cout << "succeded" << endl;
 
-        cout << "command:" << "digitaltwin" << ' '
-             << scene_path << ' '
-             << to_string(md->viewport_size[0]) << ' '
-             << to_string(md->viewport_size[1]) << ' '
-             << md->tmp_path << endl;
+        stringstream ss;
+        ss << "digitaltwin" << ' '
+           << scene_path << ' '
+           << md->viewport_size[0] << ' ' 
+           << md->viewport_size[1] << ' '
+           << md->tmp_path;
 
+        md->backend = make_shared<process::child>(ss.str(),process::std_out > md->backend_out,process::std_err > md->backend_err);
+        cout << "succeded" << endl
+             << "command:" << ss.str() << endl;
+
+        logging = thread([this](){
+            std::string line;
+            cout << "Logging has start..." << endl;
+            
+            while (md->backend->running() && md->backend_out) {
+                getline(md->backend_out,line);
+                if(!line.empty() && md->slot_log) md->slot_log('D',line);
+                md->backend->wait_for(chrono::microseconds(1000));
+            }
+
+            cout << "Logging is finished." << endl;
+        });
+        
         auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
         auto socket_path = md->tmp_path / socket_name;
         
@@ -219,9 +238,18 @@ map<string,ActiveObject*> Scene::get_active_objs()
     return active_objs_by_name;
 }
 
+void Scene::set_ground_z(float z) {
+    ground_z = z;
+
+}
+
+float Scene::get_ground_z() {
+    return ground_z;
+}
+
 void Scene::set_log_func(std::function<void(char,string)> slot)
 {
-
+    md->slot_log = slot;
 }
 
 Editor::Editor(Scene* sp) : scene(sp)
@@ -261,10 +289,10 @@ ActiveObject* Editor::select(string name)
     return scene->get_active_objs()[name];
 }
 
-ActiveObject* Editor::add(string kind,string base,Vec3 pos,Vec3 rot,float scale) 
+ActiveObject* Editor::add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale) 
 {
     stringstream req;
-    req << "editor.add('"<<kind<<"','"<<base<<"',[" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "],"<<scale<<")" << endl;
+    req << "editor.add('"<<kind<<"','"<<base<<"',[" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "],"<<scale[0]<<")" << endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
@@ -289,7 +317,7 @@ void Editor::remove(string name)
 }
 
 void Editor::set_relation(string parent,string child)
-{   
+{
 
 }
 
@@ -311,10 +339,9 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
     name = json_properties["name"].get<string>().c_str();
     kind = json_properties["kind"].get<string>().c_str();
     base = json_properties["base"].get<string>().c_str();
-    auto pos = json_properties["pos"];
-    auto rot = json_properties["rot"];
-    copy(pos.begin(),pos.begin(),this->pos.begin());
-    copy(rot.begin(),rot.begin(),this->rot.begin());
+    pos = json_properties["pos"].get<Vec3>();
+    rot = json_properties["rot"].get<Vec3>();
+    scale = json_properties["scale"].get<Vec3>();
 
     if(json_properties.contains("user_data")) {
         user_data = json_properties["user_data"].get<string>().c_str();
@@ -383,21 +410,21 @@ Vec3 ActiveObject::get_rot()
 
 void ActiveObject::set_scale(Vec3 scale)
 {
+    this->scale = scale;
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].set_scale([" << rot[0] << ',' << rot[1] << ',' << rot[2] << "])"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
-    this->rot = rot;
 }
 
 Vec3 ActiveObject::get_scale()
 {
-    return rot;
+    return this->scale;
 }
 
 void ActiveObject::set_transparence(float value)
 {
-
+    
 }
 
 float ActiveObject::get_transparence() 
