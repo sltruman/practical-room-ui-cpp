@@ -26,6 +26,7 @@ struct Scene::Plugin
     std::shared_ptr<process::child> backend;
     process::ipstream backend_out,backend_err;
     std::function<void(char,string)> slot_log;
+    json profile;
 };
 
 Scene::Scene(int width,int height,string scene_path)
@@ -40,6 +41,7 @@ Scene::~Scene()
 {
     md->socket.close();
     for(auto kv : active_objs_by_name) delete kv.second;
+    logging.join();
 
     delete md;
 }
@@ -109,7 +111,14 @@ FAILED:
     throw std::runtime_error("Failed to contact digtial-twin backend.");
 
 SUCCEDED:
-    ;
+
+    stringstream req;
+    req << "scene.profile" << endl;
+    cout << req.str();
+    asio::write(md->socket,asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(md->socket, res,'\n');
+    md->profile = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
 }
 
 const Texture Scene::rtt() {
@@ -239,12 +248,29 @@ map<string,ActiveObject*> Scene::get_active_objs()
 }
 
 void Scene::set_ground_z(float z) {
-    ground_z = z;
-
+    md->profile["ground_z"] = z;
+    stringstream req;
+    req << "scene.set_ground_z("<<z<<")" << endl;
+    cout << req.str();
+    asio::write(md->socket,  asio::buffer(req.str()));
 }
 
 float Scene::get_ground_z() {
-    return ground_z;
+    return md->profile["ground_z"].get<float>();
+}
+
+void Scene::set_ground_texture(string image_path) 
+{
+    md->profile["ground_texture"] = image_path;
+    stringstream req;
+    req << "scene.set_ground_texture('"<<image_path<<"')" << endl;
+    cout << req.str();
+    asio::write(md->socket,  asio::buffer(req.str()));
+}
+
+string Scene::get_ground_texture() 
+{
+    return md->profile["ground_texture"].get<string>();
 }
 
 void Scene::set_log_func(std::function<void(char,string)> slot)
@@ -424,7 +450,7 @@ Vec3 ActiveObject::get_scale()
 
 void ActiveObject::set_transparence(float value)
 {
-    
+
 }
 
 float ActiveObject::get_transparence() 
@@ -589,6 +615,12 @@ Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
     depth_pixels.resize(image_size[0]*image_size[1]);
     fov = json_properties["fov"].get<long long>();
     forcal = json_properties["forcal"].get<double>();
+}
+
+Camera3D::~Camera3D()
+{
+    rtt_proxy_running=false;
+    rtt_proxy.join();
 }
 
 const Texture Camera3D::rtt() {

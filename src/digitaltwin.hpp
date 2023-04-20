@@ -61,6 +61,9 @@ public:
     void draw_collision(bool enable);
     void set_ground_z(float z);
     float get_ground_z();
+    void set_ground_texture(string image_path);
+    string get_ground_texture();
+
 
     map<string,ActiveObject*> get_active_objs();
     void set_log_func(std::function<void(char,string)> slot);
@@ -70,8 +73,6 @@ protected:
     Plugin* md;
     map<string,ActiveObject*> active_objs_by_name;
     thread logging;
-    
-    float ground_z;
 };
 
 struct RayInfo { string name; double pos[3];};
@@ -86,7 +87,7 @@ public:
     Editor(Scene* sp);
     RayInfo ray(double x,double y);
     ActiveObject* select(string name);
-    ActiveObject* add(string kind,string base,Vec3 pos,Vec3 rot,float scale);
+    ActiveObject* add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale);
     void remove(string name);
     void set_relation(string parent,string child);
     list<Relation> get_relations();
@@ -154,7 +155,7 @@ struct Robot : public ActiveObject
 struct Camera3D : public ActiveObject
 {
     Camera3D(Scene* sp,string properties);
-    virtual ~Camera3D() {}
+    virtual ~Camera3D();
     const Texture rtt();
     void set_rtt_func(std::function<void(vector<unsigned char>,vector<float>,int,int)> slot);  //获取虚拟相机数据，RGB，Depth
     std::function<void(vector<unsigned char>,vector<float>,int,int)> slot_rtt;
