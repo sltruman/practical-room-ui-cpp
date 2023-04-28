@@ -70,12 +70,18 @@ void Scene::load(string scene_path) {
              << "command:" << ss.str() << endl;
 
         logging = thread([this](){
-            std::string line;
             cout << "Logging has start..." << endl;
             
             while (md->backend->running() && md->backend_out) {
+                string line;
                 getline(md->backend_out,line);
                 if(!line.empty() && md->slot_log) md->slot_log('D',line);
+                else cout << line;
+                
+                line.clear();
+                getline(md->backend_err,line);
+                if(!line.empty() && md->slot_log) md->slot_log('E',line);
+                else cerr << line;
                 md->backend->wait_for(chrono::microseconds(1000));
             }
 
@@ -111,9 +117,8 @@ FAILED:
     throw std::runtime_error("Failed to contact digtial-twin backend.");
 
 SUCCEDED:
-
     stringstream req;
-    req << "scene.profile" << endl;
+    req << "scene.get_profile()" << endl;
     cout << req.str();
     asio::write(md->socket,asio::buffer(req.str()));
     asio::streambuf res;
@@ -283,7 +288,7 @@ Editor::Editor(Scene* sp) : scene(sp)
 
 }
 
-RayInfo Editor::ray(double x,double y) 
+RayInfo Editor::ray(double x,double y)
 {
     stringstream req;
     req << "editor.ray(" << x << "," << y << ")" << endl;
@@ -359,9 +364,18 @@ void Scene::save()
     asio::write(md->socket,asio::buffer(req.str()));
 }
 
+struct ActiveObject::Plugin 
+{
+    json profile;
+};
+
 ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
 {
+    md = new Plugin;
+
     auto json_properties = json::parse(properties);
+    md->profile = json_properties;
+
     name = json_properties["name"].get<string>().c_str();
     kind = json_properties["kind"].get<string>().c_str();
     base = json_properties["base"].get<string>().c_str();
@@ -372,6 +386,10 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
     if(json_properties.contains("user_data")) {
         user_data = json_properties["user_data"].get<string>().c_str();
     }
+}
+
+ActiveObject::~ActiveObject() {
+    delete md;
 }
 
 bool ActiveObject::set_name(string new_name)
@@ -675,6 +693,30 @@ void Camera3D::clear()
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].clear_point_cloud()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Camera3D::set_roi(Vec3 pos,Vec3 rot,Vec3 size)
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_roi("
+        << pos[0] << ',' << pos[1] << ',' << pos[2] << ',' 
+        << rot[0] << ',' << rot[1] << ',' << rot[2] << ',' 
+        << size[0] << ',' << size[1] << ',' << size[2] <<  ")" 
+        << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+}
+
+void Camera3D::get_roi(Vec3& pos,Vec3& rot,Vec3& size) 
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].get_roi()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto roi = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    roi_pos = {roi[0].get<float>(),roi[1].get<float>(),roi[2].get<float>()};
+    roi_rot = {roi[3].get<float>(),roi[4].get<float>(),roi[5].get<float>()};
+    roi_size = {roi[6].get<float>(),roi[7].get<float>(),roi[8].get<float>()};
 }
 
 Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties)

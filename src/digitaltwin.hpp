@@ -101,7 +101,7 @@ protected:
 struct ActiveObject
 {
     ActiveObject(Scene* sp,string properties);
-    virtual ~ActiveObject() {}
+    virtual ~ActiveObject();
     bool set_name(string name);
     string get_name();
     void set_base(string path);
@@ -118,6 +118,8 @@ struct ActiveObject
     void set_user_data(string value);
     string get_user_data();
 
+    struct Plugin;
+    Plugin* md;
     Scene* scene;
     string name,kind,base;
     Vec3 pos,rot,scale;
@@ -160,11 +162,14 @@ struct Camera3D : public ActiveObject
     void set_rtt_func(std::function<void(vector<unsigned char>,vector<float>,int,int)> slot);  //获取虚拟相机数据，RGB，Depth
     std::function<void(vector<unsigned char>,vector<float>,int,int)> slot_rtt;
     void clear();
+    void set_roi(Vec3 pos,Vec3 rot,Vec3 size);
+    void get_roi(Vec3& pos,Vec3& rot,Vec3& size);
     
     vector<unsigned char> rgba_pixels;
     vector<float> depth_pixels;
     int image_size[2],fov;
     double forcal;
+    Vec3 roi_pos,roi_rot,roi_size;
     
     thread rtt_proxy;
     bool rtt_proxy_running;

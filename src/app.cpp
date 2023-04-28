@@ -64,7 +64,7 @@ struct SceneView : public Gtk::Overlay
 
     ~SceneView()
     {
-        
+
     }
 
     void open(string scene_path) {
@@ -76,12 +76,7 @@ struct SceneView : public Gtk::Overlay
         scene = make_shared<Scene>(800,640,scene_path);
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
-        scene->set_log_func([](char l,string s){
-            cout << l << ' ' << s << endl;
-        });
-
         area->set_draw_func(sigc::mem_fun(*this, &SceneView::area_paint_event));
-
     }
 
     void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h)
@@ -243,11 +238,14 @@ public:
 
     void on_button_workflow_clicked()
     {
-        scene_view->workflow->get_active_obj_nodes();
+        // scene_view->workflow->get_active_obj_nodes();
+        // auto obj = scene_view->editor->add("Robot","data/robots/franka_panda/franka_panda.urdf",{2,0,0},{0,0,0},1);
+        // scene_view->scene->set_ground_texture("data/pybullet_objects/checker_blue3.png");        
+        auto camera =  scene_view->scene->get_active_objs()["camera"];
+        dynamic_cast<Camera3D*>(camera)->set_roi({0,0,0.2},{0,0,0},{0.5,0.5,0.2});
 
-        auto obj = scene_view->editor->add("Robot","data/robots/franka_panda/franka_panda.urdf",{2,0,0},{0,0,0},1);
-        auto pos = obj->get_pos();
-        cout << pos[0] << ' ' << pos[1] << ' ' << pos[2] << endl;
+        Vec3 a,b,c;
+        dynamic_cast<Camera3D*>(camera)->get_roi(a,b,c);
     }
 
     Glib::RefPtr<Gtk::Builder> builder;
