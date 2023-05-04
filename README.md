@@ -52,6 +52,6 @@
 
 ## 3.1 原型设计
 
-### ![](。\prototype\prototype.png)
+### ![](.\prototype\prototype.png)
 
 ### 
