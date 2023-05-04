@@ -52,6 +52,6 @@
 
 ## 3.1 原型设计
 
-### ![](C:\Users\SLTru\Desktop\digital-twin-ui\prototype\prototype.png)
+### ![](。\prototype\prototype.png)
 
 ### 
