@@ -52,6 +52,6 @@
 
 ## 3.1 原型设计
 
-![](prototype\prototype.png)
+<img src=".\prototype\prototype.png" alt="微信截图_20220402145856"/>
 
 ### 
