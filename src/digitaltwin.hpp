@@ -43,7 +43,7 @@ friend class Camera3DReal;
 friend class Workflow;
 
 public:
-    Scene(int width,int height,string scene_path);
+    Scene(int width,int height,string scene_path,string root_dir);
     ~Scene();
     void load(string scene_path);
     void save();
@@ -63,7 +63,6 @@ public:
     float get_ground_z();
     void set_ground_texture(string image_path);
     string get_ground_texture();
-
 
     map<string,ActiveObject*> get_active_objs();
     void set_log_func(std::function<void(char,string)> slot);
@@ -164,6 +163,7 @@ struct Camera3D : public ActiveObject
     void clear();
     void set_roi(Vec3 pos,Vec3 rot,Vec3 size);
     void get_roi(Vec3& pos,Vec3& rot,Vec3& size);
+    string get_intrinsics();
     
     vector<unsigned char> rgba_pixels;
     vector<float> depth_pixels;

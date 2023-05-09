@@ -67,13 +67,14 @@ struct SceneView : public Gtk::Overlay
 
     }
 
-    void open(string scene_path) {
+    void open(string scene_path)
+    {
         img.reset();
         workflow.reset();
         editor.reset();
         scene.reset();
 
-        scene = make_shared<Scene>(800,640,scene_path);
+        scene = make_shared<Scene>(800,640,scene_path,"/home/truman/Desktop/digital-twin-ui/src");
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
         area->set_draw_func(sigc::mem_fun(*this, &SceneView::area_paint_event));
@@ -202,7 +203,6 @@ public:
         , button_start(builder->get_widget<Gtk::Button>("start"))
         , button_stop(builder->get_widget<Gtk::Button>("stop"))
         , button_workflow(builder->get_widget<Gtk::Button>("workflow"))
-
     {
         button_anchor->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_anchor_clicked));
         button_start->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_start_clicked));
@@ -241,11 +241,8 @@ public:
         // scene_view->workflow->get_active_obj_nodes();
         // auto obj = scene_view->editor->add("Robot","data/robots/franka_panda/franka_panda.urdf",{2,0,0},{0,0,0},1);
         // scene_view->scene->set_ground_texture("data/pybullet_objects/checker_blue3.png");        
-        auto camera =  scene_view->scene->get_active_objs()["camera"];
-        dynamic_cast<Camera3D*>(camera)->set_roi({0,0,0.2},{0,0,0},{0.5,0.5,0.2});
-
-        Vec3 a,b,c;
-        dynamic_cast<Camera3D*>(camera)->get_roi(a,b,c);
+        auto camera = scene_view->scene->get_active_objs()["camera"];
+        cout << dynamic_cast<Camera3D*>(camera)->get_intrinsics() << endl;
     }
 
     Glib::RefPtr<Gtk::Builder> builder;

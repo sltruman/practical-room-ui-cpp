@@ -19,7 +19,7 @@ struct Scene::Plugin
 
     asio::io_context io_context;
     asio::local::stream_protocol::socket socket;
-    boost::filesystem::path tmp_path;
+    boost::filesystem::path tmp_path,root_path;
     
     int viewport_size[2];
     vector<unsigned char> rgba_pixels;
@@ -29,11 +29,12 @@ struct Scene::Plugin
     json profile;
 };
 
-Scene::Scene(int width,int height,string scene_path)
+Scene::Scene(int width,int height,string scene_path,string root_dir)
 {
     md = new Plugin;
     md->rgba_pixels.resize(width * height * 4);
     md->viewport_size[1] = height,md->viewport_size[0] = width;
+    md->root_path = root_dir;
     load(scene_path);
 }
 
@@ -57,19 +58,21 @@ void Scene::load(string scene_path) {
         }
 
         md->tmp_path = boost::filesystem::temp_directory_path().append("digitaltwin");
-
+        auto exe = md->root_path / "digitaltwin";
+        
         stringstream ss;
-        ss << "digitaltwin" << ' '
+        ss << exe << ' '
            << scene_path << ' '
            << md->viewport_size[0] << ' ' 
            << md->viewport_size[1] << ' '
+           << md->root_path << ' '
            << md->tmp_path;
 
         md->backend = make_shared<process::child>(ss.str(),process::std_out > md->backend_out,process::std_err > md->backend_err);
         cout << "succeded" << endl
              << "command:" << ss.str() << endl;
 
-        logging = thread([this](){
+        logging = thread([this]() {
             cout << "Logging has start..." << endl;
             
             while (md->backend->running() && md->backend_out) {
@@ -95,7 +98,7 @@ void Scene::load(string scene_path) {
             cout << "Connecting to digital-twin...";
             md->backend->wait_for(chrono::seconds(1));
             
-            system::error_code ec;           
+            system::error_code ec;
             if (md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec)) {
                 cout << "failed" << endl;
                 cerr << ec.message() << endl;
@@ -195,7 +198,7 @@ void Scene::rotete_back()
     asio::write(md->socket,  asio::buffer(req.str()));
 }
 
-void Scene::pan(double x,double y) 
+void Scene::pan(double x,double y)
 {
     stringstream req;
     req << "scene.pan(" << x << "," << y << ")" << endl;
@@ -717,6 +720,16 @@ void Camera3D::get_roi(Vec3& pos,Vec3& rot,Vec3& size)
     roi_pos = {roi[0].get<float>(),roi[1].get<float>(),roi[2].get<float>()};
     roi_rot = {roi[3].get<float>(),roi[4].get<float>(),roi[5].get<float>()};
     roi_size = {roi[6].get<float>(),roi[7].get<float>(),roi[8].get<float>()};
+}
+
+string Camera3D::get_intrinsics()
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].get_intrinsics()" << endl;
+    asio::write(scene->md->socket,asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    return string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()));
 }
 
 Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties)
