@@ -503,11 +503,7 @@ Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
     end_effector = json_properties["end_effector"].get<string>();
-
-    if(json_properties.contains("speed")) 
-        speed = json_properties["speed"].get<float>();
-    else 
-        speed = 1.0;
+    speed = json_properties["speed"].get<float>();
     end_effector_pos = {0,0,0};
     end_effector_rot = {0,0,0};
     
@@ -520,15 +516,26 @@ Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
     auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
     current_joint_poses.clear();
     for(auto& item : json_res) current_joint_poses.push_back(item);
+    home_joint_poses = current_joint_poses;
 }
 
 void Robot::set_end_effector(string path)
 {
     end_effector = path;
-    stringstream req;
+    stringstream req,req2;
     req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector('"<<path<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
+
+    req2 << "scene.active_objs_by_name['"<<name<<"'].get_joints()"<<endl;
+    cout << req2.str();
+    asio::write(scene->md->socket,  asio::buffer(req2.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    current_joint_poses.clear();
+    for(auto& item : json_res) current_joint_poses.push_back(item);
+    home_joint_poses = current_joint_poses;
 }
 
 string Robot::get_end_effector() { return end_effector; }
