@@ -74,9 +74,11 @@ struct SceneView : public Gtk::Overlay
         editor.reset();
         scene.reset();
 
-        scene = make_shared<Scene>(800,640,scene_path,"/home/truman/Desktop/digital-twin-ui/src");
+        scene = make_shared<Scene>(800,640,"/home/truman/Desktop/digital-twin-ui/src/digitaltwin","/home/truman/Desktop/digital-twin-ui/src/data");
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
+        scene->load(scene_path);
+
         area->set_draw_func(sigc::mem_fun(*this, &SceneView::area_paint_event));
     }
 
@@ -87,9 +89,10 @@ struct SceneView : public Gtk::Overlay
         cr->set_source_rgb(40 / 255.,40 / 255.,40 / 255.);
         cr->paint();
 
-        auto texture = scene->rtt();
+        Texture texture;
+        scene->rtt(texture);
         
-        if(texture.rgba_pixels == nullptr) return;
+        if(texture.rgba_pixels == nullptr) return ;
 
         auto aspect_ratio = 1. * texture.width / texture.height;
         auto aspect_ratio2 = 1. * area_w / area_h;
@@ -132,11 +135,12 @@ struct SceneView : public Gtk::Overlay
                     auto x_norm = (x / area_zoom_factor - img_x) / img->get_width();
                     auto y_norm = (y / area_zoom_factor - img_y) / img->get_height();
 
-                    auto hit = editor->ray(x_norm,y_norm);
+                    RayInfo hit;
+                    editor->ray(x_norm,y_norm,hit);
                     
                     if(!hit.name.empty()) {
-                        auto active_obj = editor->select(hit.name);
-                        properties->parse(active_obj);
+                        auto objs = scene->get_active_objs();
+                        properties->parse(objs[hit.name]);
                     }
                     
                     right_side_pannel->set_visible(!hit.name.empty());
@@ -238,11 +242,12 @@ public:
 
     void on_button_workflow_clicked()
     {
-        // scene_view->workflow->get_active_obj_nodes();
-        // auto obj = scene_view->editor->add("Robot","data/robots/franka_panda/franka_panda.urdf",{2,0,0},{0,0,0},1);
-        // scene_view->scene->set_ground_texture("data/pybullet_objects/checker_blue3.png");        
-        auto camera = scene_view->scene->get_active_objs()["camera"];
-        cout << dynamic_cast<Camera3D*>(camera)->get_intrinsics() << endl;
+        string name;
+        scene_view->editor->add("Robot","data/robots/franka_panda/franka_panda.urdf",{2,0,0},{0,0,0},{1,1,1},name);
+        auto objs = scene_view->scene->get_active_objs();
+        Robot* obj = (Robot*)objs[name];
+        obj->set_end_effector("data/end_effectors/gripper2/gripper2.urdf");
+        obj->home();
     }
 
     Glib::RefPtr<Gtk::Builder> builder;

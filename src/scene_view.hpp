@@ -153,10 +153,11 @@ public:
         spin_height->set_value(obj->forcal);
 
         auto rtt = [obj,area_texture,area_texture2]() {
-            auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
+            auto aspect_ratio_viewport = 1. * obj->image_size / obj->image_size;
             int area_w = area_texture->get_width();
             int area_h = area_w / aspect_ratio_viewport;
-            auto texture = obj->rtt();
+            Texture texture;
+            obj->rtt(texture);
             auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
             area_texture->set_pixbuf(img);
             // auto img2 = Gdk::Pixbuf::create_from_data(texture.depth_pixels,Gdk::Colorspace::RGB,false,8,texture.width,texture.height,texture.width*3);
@@ -167,10 +168,10 @@ public:
 
         if(!area_texture->get_paintable()) {
             Glib::signal_timeout().connect_once([area_texture,area_texture2,obj]() {
-                auto aspect_ratio_viewport = 1. * obj->image_size[0] / obj->image_size[1];
+                auto aspect_ratio_viewport = 1. * obj->image_size / obj->image_size;
                 int area_w = area_texture->get_width();
                 int area_h = area_w / aspect_ratio_viewport;
-                auto img = Gdk::Pixbuf::create(Gdk::Colorspace::RGB, false, 8, obj->image_size[0],obj->image_size[1]);
+                auto img = Gdk::Pixbuf::create(Gdk::Colorspace::RGB, false, 8, obj->image_size,obj->image_size);
                 
                 area_texture->set_pixbuf(img);
                 area_texture2->set_pixbuf(img);

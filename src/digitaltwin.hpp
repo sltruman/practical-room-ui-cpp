@@ -32,6 +32,10 @@ struct TextureReal
 
 class ActiveObject;
 
+enum err_code {
+
+};
+
 class Scene
 {
 friend class Editor;
@@ -42,36 +46,36 @@ friend class Camera3D;
 friend class Camera3DReal;
 friend class Workflow;
 
-public:
-    Scene(int width,int height,string scene_path,string root_dir);
-    ~Scene();
-    void load(string scene_path);
-    void save();
-    const Texture rtt();
-    void play(bool run);
-    void rotate(double x,double y);
-    void rotete_left();
-    void rotete_right();
-    void rotete_top();
-    void rotete_front();
-    void rotete_back();
-    void pan(double x,double y);
-    void zoom(double factor);
-    void draw_origin(bool enable);
-    void draw_collision(bool enable);
-    void set_ground_z(float z);
-    float get_ground_z();
-    void set_ground_texture(string image_path);
-    string get_ground_texture();
 
+public:
+    Scene(int width,int height,string backend_path="./digitaltwin",string data_dir_path="./data");
+    ~Scene();
+    int load(string scene_path); //0：正常 1：后端启动失败;
+    int save();     
+    int rtt(Texture& t);
+    int play(bool run);
+    int rotate(double x,double y);  
+    int rotete_left();
+    int rotete_right();
+    int rotete_top();
+    int rotete_front();
+    int rotete_back();
+    int pan(double x,double y);
+    int zoom(double factor);
+    int draw_origin(bool enable);
+    int draw_collision(bool enable);
+    int set_ground_z(float z);
+    int set_ground_texture(string image_path);
+    float get_ground_z();
+    string get_ground_texture();
     map<string,ActiveObject*> get_active_objs();
     void set_log_func(std::function<void(char,string)> slot);
+private:
+    void sync_backend();
 
 protected:
     struct Plugin;
     Plugin* md;
-    map<string,ActiveObject*> active_objs_by_name;
-    thread logging;
 };
 
 struct RayInfo { string name; double pos[3];};
@@ -84,37 +88,39 @@ class Editor
 {
 public:
     Editor(Scene* sp);
-    RayInfo ray(double x,double y);
-    ActiveObject* select(string name);
-    ActiveObject* add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale);
-    void remove(string name);
-    void set_relation(string parent,string child);
+    virtual ~Editor();
+    int ray(double x,double y,RayInfo& info);
+    int select(string name);
+    int add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale,string& name);
+    int remove(string name);
+    int set_relation(string parent,string child);
     list<Relation> get_relations();
 
 protected:
+    Scene* scene;
+
     struct Plugin;
     Plugin* md;
-    Scene* scene;
 };
 
 struct ActiveObject
 {
     ActiveObject(Scene* sp,string properties);
     virtual ~ActiveObject();
-    bool set_name(string name);
+    int set_name(string name);
     string get_name();
-    void set_base(string path);
+    int set_base(string path);
     string get_base();
-    void set_pos(Vec3 pos);
+    int set_pos(Vec3 pos);
     Vec3 get_pos();
-    void set_rot(Vec3 rot);
+    int set_rot(Vec3 rot);
     Vec3 get_rot();
-    void set_scale(Vec3 scale);
+    int set_scale(Vec3 scale);
     Vec3 get_scale();
-    void set_transparence(float value);
+    int set_transparence(float value);
     float get_transparence();
     string get_kind();
-    void set_user_data(string value);
+    int set_user_data(string value);
     string get_user_data();
 
     struct Plugin;
@@ -130,21 +136,21 @@ struct Robot : public ActiveObject
     Robot(Scene* sp,string properties);
     virtual ~Robot() {}
 
-    void set_end_effector(string path);
+    int set_end_effector(string path);
     string get_end_effector();
-    void digital_output(bool pickup);
+    int digital_output(bool pickup);
     int get_joints_num();
-    void set_joint_position(int joint_index,float value);
+    int set_joint_position(int joint_index,float value);
     float get_joint_position(int joint_index);
-    void set_end_effector_pos(Vec3 pos);
+    int set_end_effector_pos(Vec3 pos);
     Vec3 get_end_effector_pos();
-    void set_end_effector_rot(Vec3 rot);
+    int set_end_effector_rot(Vec3 rot);
     Vec3 get_end_effector_rot();
-    void set_speed(float value);
+    int set_speed(float value);
     float get_speed();
     void set_home();
-    void home();
-    void track(bool enable);
+    int home();
+    int track(bool enable);
 
     int end_effector_id;
     string end_effector;
@@ -157,17 +163,17 @@ struct Camera3D : public ActiveObject
 {
     Camera3D(Scene* sp,string properties);
     virtual ~Camera3D();
-    const Texture rtt();
+    int rtt(Texture&);
     void set_rtt_func(std::function<void(vector<unsigned char>,vector<float>,int,int)> slot);  //获取虚拟相机数据，RGB，Depth
     std::function<void(vector<unsigned char>,vector<float>,int,int)> slot_rtt;
-    void clear();
-    void set_roi(Vec3 pos,Vec3 rot,Vec3 size);
+    int clear();
+    int set_roi(Vec3 pos,Vec3 rot,Vec3 size);
     void get_roi(Vec3& pos,Vec3& rot,Vec3& size);
     string get_intrinsics();
     
     vector<unsigned char> rgba_pixels;
     vector<float> depth_pixels;
-    int image_size[2],fov;
+    int image_size,fov;
     double forcal;
     Vec3 roi_pos,roi_rot,roi_size;
     
@@ -179,10 +185,10 @@ struct Camera3DReal : public ActiveObject
 {
     Camera3DReal(Scene* sp,string properties);
     virtual ~Camera3DReal();
-    const TextureReal rtt();
+    int rtt(TextureReal& t);
     void set_rtt_func(std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot);  //获取真实相机数据，点云，RGB，Depth
-    void set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
-    void clear();
+    int set_calibration(string projection_transform,string eye_to_hand_transform); //相机内参，手眼标定矩阵
+    int clear();
 
     std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot_rtt;
     vector<unsigned char> rgb_pixels;
@@ -198,21 +204,21 @@ struct Placer : public ActiveObject
     Placer(Scene* sp,string properties);
     virtual ~Placer() {}
     string get_workpiece() { return ""; }
-    void set_workpiece(string base);
+    int set_workpiece(string base);
     string get_workpiece_texture() { return ""; }
-    void set_workpiece_texture(string texture);
+    int set_workpiece_texture(string texture);
     Vec3 get_center();
-    void set_center(Vec3 pos);
+    int set_center(Vec3 pos);
     int get_amount() { return 0; }
-    void set_amount(int num);
+    int set_amount(int num);
     void get_layout(int& x,int& y,int& z);
-    void set_layout(int x,int y,int z);
+    int set_layout(int x,int y,int z);
     float get_interval();
-    void set_interval(float seconds);
+    int set_interval(float seconds);
     void get_scale_factor(float& max,float& min) {}
-    void set_scale_factor(float max,float min);
+    int set_scale_factor(float max,float min);
     string get_place_mode() { return ""; }
-    void set_place_mode(string place_mode); // random：随机的 tidy：整齐的 layout：整齐的xyz布局
+    int set_place_mode(string place_mode); // random：随机的 tidy：整齐的 layout：整齐的xyz布局
     
     string workpiece,workpiece_texture;
     Vec3 center,scale_factor;
@@ -236,10 +242,10 @@ public:
     ~Workflow();
     void add_active_obj_node(string kind,string name,string f,std::function<string()> slot);
     string get_active_obj_nodes();
-    void set(string info);
+    int set(string info);
     string get();
-    void start();
-    void stop();
+    int start();
+    int stop();
     
 protected:
     Scene* scene;
