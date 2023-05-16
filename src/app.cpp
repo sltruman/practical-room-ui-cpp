@@ -41,7 +41,7 @@ struct TemplateView : public Gtk::ScrolledWindow
         template_1->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/深度图.json"));
         template_2->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/姿态估计.json"));
         template_3->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/混合拆垛.json"));
-        template_4->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/无序抓取.json"));
+        template_4->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/无序抓取.json"));  
     };
 };
 
@@ -51,15 +51,9 @@ struct SceneView : public Gtk::Overlay
         : Gtk::Overlay(cobject)
     {
         area = builder->get_widget<Gtk::DrawingArea>("simulation");
-
         right_side_pannel = builder->get_widget<Gtk::ScrolledWindow>("right_side_pannel");
         add_overlay(*right_side_pannel);
-
         properties = Gtk::Builder::get_widget_derived<ObjectProperties>(builder,"properties");
-        
-        auto controller = Gtk::EventControllerLegacy::create();
-        controller->signal_event().connect(sigc::mem_fun(*this,&SceneView::area_drag_event),false);
-        add_controller(controller);
     }
 
     ~SceneView()
@@ -74,12 +68,27 @@ struct SceneView : public Gtk::Overlay
         editor.reset();
         scene.reset();
 
-        scene = make_shared<Scene>(800,640,"/home/truman/Desktop/digital-twin-ui/src/digitaltwin","/home/truman/Desktop/digital-twin-ui/src/data");
+        scene = make_shared<Scene>(800,640,"./digitaltwin","./data");
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
         scene->load(scene_path);
 
         area->set_draw_func(sigc::mem_fun(*this, &SceneView::area_paint_event));
+
+        controller = Gtk::EventControllerLegacy::create();
+        controller->signal_event().connect(sigc::mem_fun(*this,&SceneView::area_drag_event),false);
+        add_controller(controller);
+    }
+
+    void close()
+    {
+        remove_controller(controller);
+
+        area->set_draw_func([this](const Cairo::RefPtr<Cairo::Context>&,int,int){});
+        img.reset();
+        workflow.reset();
+        editor.reset();
+        scene.reset();
     }
 
     void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h)
@@ -104,7 +113,10 @@ struct SceneView : public Gtk::Overlay
         img_x = (area_w / factor - texture.width) / 2;
         img_y = (area_h / factor - texture.height) / 2;
 
-        if(!img) img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
+        if(!img) {
+            img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
+        }
+
         Gdk::Cairo::set_source_pixbuf(cr, img,img_x,img_y);
         cr->paint();
 
@@ -191,6 +203,7 @@ struct SceneView : public Gtk::Overlay
     std::shared_ptr<digitaltwin::Scene> scene;
     std::shared_ptr<digitaltwin::Editor> editor;
     std::shared_ptr<digitaltwin::Workflow> workflow;
+    std::shared_ptr<Gtk::EventControllerLegacy> controller;
 };
 
 class AppWindow : public Gtk::ApplicationWindow
@@ -202,18 +215,42 @@ public:
         , scene_view(Gtk::Builder::get_widget_derived<SceneView>(builder,"scene_view"))
         , views(builder->get_widget<Gtk::Stack>("views"))
         , view_switcher(builder->get_widget<Gtk::StackSwitcher>("view_switcher"))
+        , template_page(dynamic_cast<Gtk::StackPage*>(builder->get_object("template_page").get()))
         , scene_page(dynamic_cast<Gtk::StackPage*>(builder->get_object("scene_page").get()))
         , button_anchor(builder->get_widget<Gtk::Button>("anchor"))
         , button_start(builder->get_widget<Gtk::Button>("start"))
         , button_stop(builder->get_widget<Gtk::Button>("stop"))
         , button_workflow(builder->get_widget<Gtk::Button>("workflow"))
+        , button_edit(builder->get_widget<Gtk::Button>("edit"))
     {
+        signal_close_request().connect([this](){ scene_view->close(); return false; },true);
+        
         button_anchor->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_anchor_clicked));
         button_start->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_start_clicked));
         button_stop->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_stop_clicked));
         button_workflow->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_workflow_clicked));
-        template_view->signal_selected.connect([this](string) { views->set_visible_child("scene_page"); });
-        template_view->signal_selected.connect(sigc::mem_fun(*scene_view,&SceneView::open));
+        button_edit->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_edit_clicked));
+        
+        template_view->signal_selected.connect([this](string scene_path) { 
+            views->set_visible_child("scene_page");
+            button_edit->set_visible();
+            button_workflow->set_visible();
+            button_stop->set_visible();
+            button_start->set_visible();
+            button_anchor->set_visible();
+            scene_view->open(scene_path);
+        });
+
+        auto controller = Gtk::GestureClick::create();
+        controller->signal_pressed().connect([this](int,double,double){
+            button_edit->set_visible(false);
+            button_workflow->set_visible(false);
+            button_stop->set_visible(false);
+            button_start->set_visible(false);
+            button_anchor->set_visible(false);
+            scene_view->close();
+        });
+        view_switcher->add_controller(controller);   
     }
 
     ~AppWindow()
@@ -250,13 +287,19 @@ public:
         obj->home();
     }
 
+    void on_button_edit_clicked()
+    {
+
+    }
+
+
     Glib::RefPtr<Gtk::Builder> builder;
     TemplateView* template_view;
     SceneView* scene_view;
     Gtk::Stack* views;
     Gtk::StackSwitcher* view_switcher;
-    Gtk::StackPage* scene_page;
-    Gtk::Button *button_anchor,*button_start,*button_stop,*button_workflow;
+    Gtk::StackPage *template_page,*scene_page;
+    Gtk::Button *button_anchor,*button_start,*button_stop,*button_workflow,*button_edit;
 };
 
 int main(int argc, char* argv[])
@@ -270,9 +313,12 @@ int main(int argc, char* argv[])
     app->signal_activate().connect([app]() {
         // auto builder = Gtk::Builder::create_from_resource("/app.glade");
         auto builder = Gtk::Builder::create_from_file("./app.glade");
-        builder->add_from_file("./template_view.glade");
-        builder->add_from_file("./scene_view.glade");
+        builder->add_from_file("./object_properties.glade");
         app->add_window(*Gtk::Builder::get_widget_derived<AppWindow>(builder,"app_window"));
+    });
+
+    app->signal_shutdown().connect([]{
+        
     });
 
     return app->run(argc, argv);

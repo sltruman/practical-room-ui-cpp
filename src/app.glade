@@ -17,11 +17,13 @@
         </child>
         <child>
           <object class="GtkToggleButton" id="workflow">
+          <property name="visible">False</property>
             <property name="icon-name">emblem-shared-symbolic</property>
           </object>
         </child>
         <child>
           <object class="GtkButton" id="start">
+          <property name="visible">False</property>
             <property name="icon-name">media-playback-start-symbolic</property>
           </object>
         </child>
@@ -39,7 +41,14 @@
 
         <child type="end">
           <object class="GtkToggleButton" id="anchor">
+            <property name="visible">False</property>
             <property name="icon-name">view-pin-symbolic</property>
+          </object>
+        </child>
+        <child type="end">
+          <object class="GtkToggleButton" id="edit">
+            <property name="visible">False</property>
+            <property name="icon-name">insert-object</property>
           </object>
         </child>
       </object>
@@ -182,8 +191,8 @@
         <child>
           <object class="GtkStackPage" id="scene_page">
             <property name="name">scene_page</property>
+            <property name="visible">False</property>
             <property name="icon-name">go-next-symbolic</property>
-
             <property name="child">
               <object class="GtkOverlay" id="scene_view">
                 <child>
