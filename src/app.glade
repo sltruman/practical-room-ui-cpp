@@ -70,6 +70,7 @@
                     <property name="valign">GTK_ALIGN_START</property>
                     <property name="max-children-per-line">20</property>
                     <property name="homogeneous">True</property>
+<!--                     
                             <child>
                               <object class="GtkButton" id="template_0">
                                 <property name="width-request">200</property>
@@ -114,73 +115,7 @@
                                   </object>
                                 </child>
                               </object>
-                            </child>
-
-                            <child>
-                              <object class="GtkButton" id="template_2">
-                                <child>
-                                  <object class="GtkBox">
-                                    <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
-                                    <child>
-                                      <object class="GtkImage">
-                                        <property name="pixel-size">150</property>
-                                        <property name="icon-name">application-x-appliance-symbolic</property>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkLabel">
-                                        <property name="label">姿态估计</property>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  
-                                </child>
-                              </object>
-                            </child>
-
-                            <child>
-                              <object class="GtkButton" id="template_3">
-                                <child>
-                                  <object class="GtkBox">
-                                    <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
-                                    <child>
-                                      <object class="GtkImage">
-                                        <property name="pixel-size">150</property>
-                                        <property name="icon-name">application-x-appliance-symbolic</property>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkLabel">
-                                        <property name="label">混合拆垛</property>
-                                      </object>
-                                    </child>
-                                  </object>
-                                  
-                                </child>
-                              </object>
-                            </child>
-
-                            <child>
-                              <object class="GtkButton" id="template_4">
-                                <child>
-                                  <object class="GtkBox">
-                                    <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
-                                    <child>
-                                      <object class="GtkImage">
-                                        <property name="pixel-size">150</property>
-                                        <property name="icon-name">application-x-appliance-symbolic</property>
-                                      </object>
-                                    </child>
-                                    <child>
-                                      <object class="GtkLabel">
-                                        <property name="label">无序抓取</property>
-                                      </object>
-                                    </child>
-                                  </object>
-                                </child>
-                              </object>
-                            </child>
-
+                            </child> -->
 
                   </object>
                 </child>

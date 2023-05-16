@@ -90,17 +90,15 @@ int Scene::load(string scene_path) {
         auto backend_out = process::std_out > md->backend_out;
         md->backend_process = make_shared<process::child>(ss.str(),backend_out);
 
-        for(int i=0;i<4;i++) {
+        for(int i=0;;i++) {
             cout << "Connecting to digital-twin...";
-            md->backend_process->wait_for(chrono::seconds(1));
+            md->backend_process->wait_for(chrono::milliseconds(500));
            
             system::error_code ec;
             if (md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec)) {
                 cerr << "failed" << endl;
                 cerr << ec.message() << endl;
             } else break;
-
-            if (i==3) throw ec;
         }
 
         cout << "succeded" << endl;
@@ -235,47 +233,49 @@ void Scene::sync_backend()
     asio::streambuf res;
     asio::read_until(md->socket, res,'\n');
     md->profile = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-
-    req = stringstream();
-    req << "scene.get_active_obj_properties()" << endl;
-    cout << req.str() << endl;
-    asio::write(md->socket,asio::buffer(req.str()));
-    
-    res.consume(res.size());
-    asio::read_until(md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    cout << json_res.dump() << endl;
-
-    for (auto i : json_res.items()) {
-        auto name = i.key();
-        auto properties = i.value();
-        auto description = properties.dump();
-        
-        ActiveObject* obj = nullptr;
-        auto it = md->active_objs_by_name.find(name);
-        if(it != md->active_objs_by_name.end()) continue;
-
-        auto kind = properties["kind"].get<string>();
-        if(kind == "Robot") {
-            obj = new Robot(this, description);
-        } else if(kind == "Camera3D") {
-            obj = new Camera3D(this, description);
-        }  else if(kind == "Camera3DReal") {
-            obj = new Camera3DReal(this, description);
-        } else if(kind == "Placer") {
-            obj = new Placer(this, description);
-        } else if(kind == "Stacker") {
-            obj = new Stacker(this, description);
-        } else {
-            obj = new ActiveObject(this, description);
-        }
-
-        md->active_objs_by_name[name] = obj;
-    }
 }
 
 map<string,ActiveObject*> Scene::get_active_objs()
 {
+    if (md->active_objs_by_name.empty()) {
+        stringstream req;
+        req << "scene.get_active_obj_properties()" << endl;
+        cout << req.str() << endl;
+        asio::write(md->socket,asio::buffer(req.str()));
+        
+        asio::streambuf res;
+        asio::read_until(md->socket, res,'\n');
+        auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+        cout << json_res.dump() << endl;
+
+        for (auto i : json_res.items()) {
+            auto name = i.key();
+            auto properties = i.value();
+            auto description = properties.dump();
+            
+            ActiveObject* obj = nullptr;
+            auto it = md->active_objs_by_name.find(name);
+            if(it != md->active_objs_by_name.end()) continue;
+
+            auto kind = properties["kind"].get<string>();
+            if(kind == "Robot") {
+                obj = new Robot(this, description);
+            } else if(kind == "Camera3D") {
+                obj = new Camera3D(this, description);
+            }  else if(kind == "Camera3DReal") {
+                obj = new Camera3DReal(this, description);
+            } else if(kind == "Placer") {
+                obj = new Placer(this, description);
+            } else if(kind == "Stacker") {
+                obj = new Stacker(this, description);
+            } else {
+                obj = new ActiveObject(this, description);
+            }
+
+            md->active_objs_by_name[name] = obj;
+        }
+    }
+
     return md->active_objs_by_name;
 }
 
@@ -679,6 +679,7 @@ int Robot::track(bool enable)
 }
 
 Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
+    , rtt_proxy_running(false)
 {
     auto json_properties = json::parse(properties);
     pixels_w = json_properties["pixels_w"].get<long long>();

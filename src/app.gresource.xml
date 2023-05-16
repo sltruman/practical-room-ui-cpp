@@ -2,5 +2,6 @@
 <gresources>
   <gresource prefix="/">
     <file preprocess="xml-stripblanks">app.glade</file>
+    <file preprocess="xml-stripblanks">object_properties.glade</file>
   </gresource>
 </gresources>

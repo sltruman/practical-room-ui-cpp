@@ -21,33 +21,53 @@ using namespace digitaltwin;
 
 #include "scene_view.hpp"
 
+static const boost::filesystem::path scene_dir_path = "./data/scenes";
+
 struct TemplateView : public Gtk::ScrolledWindow
 {
     sigc::signal<void(string)> signal_selected;
 
-    Glib::RefPtr<Gtk::FlowBox> template_list;
-    Glib::RefPtr<Gtk::Button> template_0,template_1,template_2,template_3,template_4;
+    std::shared_ptr<Gtk::FlowBox> template_list;
+    std::shared_ptr<Gtk::Button> template_0,template_1,template_2,template_3,template_4;
+    list<std::shared_ptr<Gtk::Button>> templates;
 
-    TemplateView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+    TemplateView(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
         : Gtk::ScrolledWindow(cobject)
         , template_list(builder->get_widget<Gtk::FlowBox>("template_list"))
-        , template_0(builder->get_widget<Gtk::Button>("template_0"))
-        , template_1(builder->get_widget<Gtk::Button>("template_1"))
-        , template_2(builder->get_widget<Gtk::Button>("template_2"))
-        , template_3(builder->get_widget<Gtk::Button>("template_3"))
-        , template_4(builder->get_widget<Gtk::Button>("template_4"))
     {
-        template_0->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/空.json"));
-        template_1->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/深度图.json"));
-        template_2->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/姿态估计.json"));
-        template_3->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/混合拆垛.json"));
-        template_4->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),"data/scenes/无序抓取.json"));  
-    };
+        for (auto fileitem : boost::filesystem::recursive_directory_iterator(scene_dir_path)) { 
+            auto filepath = fileitem.path();
+            auto ext = filepath.extension();
+            if (".json" != ext) continue;
+            auto scene_path = filepath;
+            auto img_path = scene_path; img_path += ".png";
+            auto scene_name = scene_path.filename().string();
+            
+            auto t = templates.emplace_back(make_shared<Gtk::Button>());
+            Gtk::Box box(Gtk::Orientation::VERTICAL);
+            Gtk::Image img; img.set_expand();            
+            if (boost::filesystem::exists(img_path))  {
+                img.set_pixel_size(150);
+                img.property_file().set_value(img_path.string());
+            } else {
+                img.set_pixel_size(100);
+                img.set_from_icon_name("application-x-appliance-symbolic");
+            }
+            
+            Gtk::Label name(scene_name.erase(scene_name.find(".json")));
+            box.append(img);
+            box.append(name);
+            
+            t->set_child(box);
+            t->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),scene_path.string()));
+            template_list->append(*t);
+        }
+    }
 };
 
 struct SceneView : public Gtk::Overlay 
 {
-    SceneView(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+    SceneView(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
         : Gtk::Overlay(cobject)
     {
         area = builder->get_widget<Gtk::DrawingArea>("simulation");
@@ -63,10 +83,7 @@ struct SceneView : public Gtk::Overlay
 
     void open(string scene_path)
     {
-        img.reset();
-        workflow.reset();
-        editor.reset();
-        scene.reset();
+        close();
 
         scene = make_shared<Scene>(800,640,"./digitaltwin","./data");
         editor = make_shared<Editor>(scene.get());
@@ -74,7 +91,6 @@ struct SceneView : public Gtk::Overlay
         scene->load(scene_path);
 
         area->set_draw_func(sigc::mem_fun(*this, &SceneView::area_paint_event));
-
         controller = Gtk::EventControllerLegacy::create();
         controller->signal_event().connect(sigc::mem_fun(*this,&SceneView::area_drag_event),false);
         add_controller(controller);
@@ -83,7 +99,6 @@ struct SceneView : public Gtk::Overlay
     void close()
     {
         remove_controller(controller);
-
         area->set_draw_func([this](const Cairo::RefPtr<Cairo::Context>&,int,int){});
         img.reset();
         workflow.reset();
@@ -113,9 +128,7 @@ struct SceneView : public Gtk::Overlay
         img_x = (area_w / factor - texture.width) / 2;
         img_y = (area_h / factor - texture.height) / 2;
 
-        if(!img) {
-            img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
-        }
+        if(!img) img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
 
         Gdk::Cairo::set_source_pixbuf(cr, img,img_x,img_y);
         cr->paint();
@@ -124,8 +137,8 @@ struct SceneView : public Gtk::Overlay
     }
 
     int handled = 0;
-    Glib::RefPtr<const Gdk::Event> prev_ev;
-    bool area_drag_event(const Glib::RefPtr<const Gdk::Event>& ev)
+    std::shared_ptr<const Gdk::Event> prev_ev;
+    bool area_drag_event(const std::shared_ptr<const Gdk::Event>& ev)
     {
         auto type = ev->get_event_type();
         auto button = ev->get_button();
@@ -209,7 +222,7 @@ struct SceneView : public Gtk::Overlay
 class AppWindow : public Gtk::ApplicationWindow
 {
 public:
-    AppWindow(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+    AppWindow(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
         : Gtk::ApplicationWindow(cobject)
         , template_view(Gtk::Builder::get_widget_derived<TemplateView>(builder,"template_view"))
         , scene_view(Gtk::Builder::get_widget_derived<SceneView>(builder,"scene_view"))
@@ -221,7 +234,7 @@ public:
         , button_start(builder->get_widget<Gtk::Button>("start"))
         , button_stop(builder->get_widget<Gtk::Button>("stop"))
         , button_workflow(builder->get_widget<Gtk::Button>("workflow"))
-        , button_edit(builder->get_widget<Gtk::Button>("edit"))
+        , button_edit(builder->get_widget<Gtk::ToggleButton>("edit"))
     {
         signal_close_request().connect([this](){ scene_view->close(); return false; },true);
         
@@ -229,13 +242,12 @@ public:
         button_start->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_start_clicked));
         button_stop->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_stop_clicked));
         button_workflow->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_workflow_clicked));
-        button_edit->signal_clicked().connect(sigc::mem_fun(*this,&AppWindow::on_button_edit_clicked));
+        button_edit->signal_toggled().connect(sigc::mem_fun(*this,&AppWindow::on_button_edit_clicked));
         
         template_view->signal_selected.connect([this](string scene_path) { 
             views->set_visible_child("scene_page");
             button_edit->set_visible();
             button_workflow->set_visible();
-            button_stop->set_visible();
             button_start->set_visible();
             button_anchor->set_visible();
             scene_view->open(scene_path);
@@ -245,8 +257,8 @@ public:
         controller->signal_pressed().connect([this](int,double,double){
             button_edit->set_visible(false);
             button_workflow->set_visible(false);
-            button_stop->set_visible(false);
             button_start->set_visible(false);
+            button_stop->set_visible(false);
             button_anchor->set_visible(false);
             scene_view->close();
         });
@@ -289,17 +301,22 @@ public:
 
     void on_button_edit_clicked()
     {
-
+        if(button_edit->get_active()) {
+            cout << "edit" << endl;
+        } else {
+            cout << "view" << endl;
+        }
     }
 
 
-    Glib::RefPtr<Gtk::Builder> builder;
+    std::shared_ptr<Gtk::Builder> builder;
     TemplateView* template_view;
     SceneView* scene_view;
     Gtk::Stack* views;
     Gtk::StackSwitcher* view_switcher;
     Gtk::StackPage *template_page,*scene_page;
-    Gtk::Button *button_anchor,*button_start,*button_stop,*button_workflow,*button_edit;
+    Gtk::Button *button_anchor,*button_start,*button_stop,*button_workflow;
+    Gtk::ToggleButton *button_edit;
 };
 
 int main(int argc, char* argv[])
