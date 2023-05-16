@@ -52,8 +52,7 @@ Scene::~Scene()
 
     if(md->backend_process) {
         md->backend_process->terminate();
-        md->backend_process->wait();
-        md->backend_out.close();
+        md->backend_process->join();
     }
 
     md->logging.join();
@@ -88,7 +87,6 @@ int Scene::load(string scene_path) {
         auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
         auto socket_path = md->tmp_dir_path / socket_name;
         
-        // md->backend_process = make_shared<process::child>(ss.str());
         auto backend_out = process::std_out > md->backend_out;
         md->backend_process = make_shared<process::child>(ss.str(),backend_out);
 
@@ -683,17 +681,20 @@ int Robot::track(bool enable)
 Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
-    image_size = json_properties["image_size"].get<long long>();
-    rgba_pixels.resize(image_size*image_size*4);
-    depth_pixels.resize(image_size*image_size);
-    fov = json_properties["fov"].get<long long>();
-    forcal = json_properties["forcal"].get<double>();
+    pixels_w = json_properties["pixels_w"].get<long long>();
+    pixels_h = json_properties["pixels_h"].get<long long>();
+    rgba_pixels.resize(pixels_w*pixels_h*4);
+    depth_pixels.resize(pixels_w*pixels_h);
+    fov = json_properties["fov"].get<float>();
+    focal = json_properties["focal"].get<float>();
 }
 
 Camera3D::~Camera3D()
 {
-    rtt_proxy_running=false;
-    rtt_proxy.join();
+    if (rtt_proxy_running) {
+        rtt_proxy_running=false;
+        rtt_proxy.join();
+    }
 }
 
 int Camera3D::rtt(Texture& t) {
@@ -703,8 +704,8 @@ int Camera3D::rtt(Texture& t) {
     asio::read(scene->md->socket,asio::buffer(rgba_pixels));
     asio::read(scene->md->socket,asio::buffer(depth_pixels));
 
-    t.width = image_size;
-    t.height = image_size;
+    t.width = pixels_w;
+    t.height = pixels_h;
     t.rgba_pixels = rgba_pixels.data();
     t.depth_pixels = depth_pixels.data();
     return 0;
@@ -735,7 +736,7 @@ void Camera3D::set_rtt_func(std::function<void(vector<unsigned char>,vector<floa
 
             asio::read(socket,asio::buffer(rgba_pixels));
             asio::read(socket,asio::buffer(depth_pixels));
-            slot_rtt(rgba_pixels,depth_pixels,image_size,image_size);
+            slot_rtt(rgba_pixels,depth_pixels,pixels_w,pixels_h);
         }
 
         acceptor.close();
@@ -785,11 +786,10 @@ string Camera3D::get_intrinsics()
 Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
-    auto vs = json_properties["image_size"];
-    image_size[0] = vs[0].get<long long>();
-    image_size[1] = vs[1].get<long long>();
-    rgb_pixels.resize(image_size[0]*image_size[1]*3);
-    depth_pixels.resize(image_size[0]*image_size[1]);
+    pixels_w = json_properties["pixels_w"].get<long long>();
+    pixels_h = json_properties["pixels_h"].get<long long>();
+    rgb_pixels.resize(pixels_w*pixels_h*3);
+    depth_pixels.resize(pixels_w*pixels_h);
 }
 
 Camera3DReal::~Camera3DReal()
@@ -803,8 +803,8 @@ int Camera3DReal::rtt(TextureReal& t) {
     req << "scene.active_objs_by_name['"<<name<<"'].rtt()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
 
-    t.width = image_size[0];
-    t.height = image_size[1];
+    t.width = pixels_w;
+    t.height = pixels_h;
     t.rgb_pixels = rgb_pixels.data();
     t.depth_pixels = depth_pixels.data();
     return 0;
@@ -835,9 +835,9 @@ void Camera3DReal::set_rtt_func(std::function<bool(vector<unsigned char>&,vector
                 continue;
             }
             
-            if(slot_rtt(rgb_pixels,depth_pixels,image_size[0],image_size[1])) {
-                asio::write(socket,asio::buffer(&image_size[0],4));
-                asio::write(socket,asio::buffer(&image_size[1],4));
+            if(slot_rtt(rgb_pixels,depth_pixels,pixels_w,pixels_h)) {
+                asio::write(socket,asio::buffer(&pixels_w,4));
+                asio::write(socket,asio::buffer(&pixels_h,4));
                 asio::write(socket,asio::buffer(rgb_pixels));
                 asio::write(socket,asio::buffer(depth_pixels));  
             } else {

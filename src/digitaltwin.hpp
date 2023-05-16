@@ -32,10 +32,6 @@ struct TextureReal
 
 class ActiveObject;
 
-enum err_code {
-
-};
-
 class Scene
 {
 friend class Editor;
@@ -45,7 +41,6 @@ friend class Robot;
 friend class Camera3D;
 friend class Camera3DReal;
 friend class Workflow;
-
 
 public:
     Scene(int width,int height,string backend_path="./digitaltwin",string data_dir_path="./data");
@@ -70,6 +65,7 @@ public:
     string get_ground_texture();
     map<string,ActiveObject*> get_active_objs();
     void set_log_func(std::function<void(char,string)> slot);
+
 private:
     void sync_backend();
 
@@ -173,8 +169,8 @@ struct Camera3D : public ActiveObject
     
     vector<unsigned char> rgba_pixels;
     vector<float> depth_pixels;
-    int image_size,fov;
-    double forcal;
+    int pixels_w,pixels_h;
+    float fov,focal;
     Vec3 roi_pos,roi_rot,roi_size;
     
     thread rtt_proxy;
@@ -193,7 +189,8 @@ struct Camera3DReal : public ActiveObject
     std::function<bool(vector<unsigned char>&,vector<float>&,int&,int&)> slot_rtt;
     vector<unsigned char> rgb_pixels;
     vector<float> depth_pixels;
-    int image_size[2];
+    int pixels_w,pixels_h;
+    float fov,focal;
 
     thread rtt_proxy;
     bool rtt_proxy_running;

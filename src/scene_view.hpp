@@ -150,10 +150,10 @@ public:
         auto area_texture = builder->get_object<Gtk::Picture>("texture");
         auto area_texture2 = builder->get_object<Gtk::Picture>("texture_depth");
         spin_width->set_value(obj->fov);
-        spin_height->set_value(obj->forcal);
+        spin_height->set_value(obj->focal);
 
         auto rtt = [obj,area_texture,area_texture2]() {
-            auto aspect_ratio_viewport = 1. * obj->image_size / obj->image_size;
+            auto aspect_ratio_viewport = 1. * obj->pixels_w / obj->pixels_h;
             int area_w = area_texture->get_width();
             int area_h = area_w / aspect_ratio_viewport;
             Texture texture;
@@ -168,10 +168,10 @@ public:
 
         if(!area_texture->get_paintable()) {
             Glib::signal_timeout().connect_once([area_texture,area_texture2,obj]() {
-                auto aspect_ratio_viewport = 1. * obj->image_size / obj->image_size;
+                auto aspect_ratio_viewport = 1. * obj->pixels_w / obj->pixels_h;
                 int area_w = area_texture->get_width();
                 int area_h = area_w / aspect_ratio_viewport;
-                auto img = Gdk::Pixbuf::create(Gdk::Colorspace::RGB, false, 8, obj->image_size,obj->image_size);
+                auto img = Gdk::Pixbuf::create(Gdk::Colorspace::RGB, false, 8, obj->pixels_w,obj->pixels_h);
                 
                 area_texture->set_pixbuf(img);
                 area_texture2->set_pixbuf(img);
