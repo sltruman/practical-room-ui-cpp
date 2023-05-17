@@ -4,6 +4,7 @@
 #include <gtkmm.h>
 #include <gtkmm/eventcontrollerlegacy.h>
 
+#include <map>
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -19,7 +20,7 @@ using namespace boost;
 #include "digitaltwin.hpp"
 using namespace digitaltwin;
 
-#include "scene_view.hpp"
+#include "object_properties.hpp"
 
 static const boost::filesystem::path scene_dir_path = "./data/scenes";
 
@@ -27,8 +28,7 @@ struct TemplateView : public Gtk::ScrolledWindow
 {
     sigc::signal<void(string)> signal_selected;
 
-    std::shared_ptr<Gtk::FlowBox> template_list;
-    std::shared_ptr<Gtk::Button> template_0,template_1,template_2,template_3,template_4;
+    Gtk::FlowBox* template_list;
     list<std::shared_ptr<Gtk::Button>> templates;
 
     TemplateView(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
@@ -39,9 +39,8 @@ struct TemplateView : public Gtk::ScrolledWindow
             auto filepath = fileitem.path();
             auto ext = filepath.extension();
             if (".json" != ext) continue;
-            auto scene_path = filepath;
-            auto img_path = scene_path; img_path += ".png";
-            auto scene_name = scene_path.filename().string();
+            auto img_path = filepath; img_path += ".png";
+            auto scene_name = filepath.filename().string();
             
             auto t = templates.emplace_back(make_shared<Gtk::Button>());
             Gtk::Box box(Gtk::Orientation::VERTICAL);
@@ -59,11 +58,35 @@ struct TemplateView : public Gtk::ScrolledWindow
             box.append(name);
             
             t->set_child(box);
-            t->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),scene_path.string()));
+            t->signal_clicked().connect(sigc::bind(sigc::mem_fun(signal_selected,&sigc::signal<void(string)>::emit),filepath.string()));
             template_list->append(*t);
         }
     }
 };
+
+struct RightSidePannel : public Gtk::ScrolledWindow
+{
+    Gtk::Viewport* content;
+    std::map<string,ObjectProperties*> contents;
+
+    RightSidePannel(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
+        : Gtk::ScrolledWindow(cobject)
+        , content(builder->get_widget<Gtk::Viewport>("content"))
+    {
+        contents["Camera3DReal"] = contents["Camera3D"] = contents["Robot"] = contents["ActiveObject"] = Gtk::Builder::get_widget_derived<ObjectProperties>(builder,"object_properties");
+        // contents["Camera3DReal"] = contents["Camera3D"] = Gtk::Builder::get_widget_derived<Camera3DProperties>(builder,"camera3d_properties");
+        // contents["Robot"] = Gtk::Builder::get_widget_derived<RobotProperties>(builder,"robot_properties");
+    }                                                                                    
+
+    void parse(ActiveObject* obj) {
+        auto kind = obj->get_kind();
+        
+        auto properties = contents[kind];
+        properties->parse(obj);
+        content->set_child(*properties);
+    }
+};
+
 
 struct SceneView : public Gtk::Overlay 
 {
@@ -71,9 +94,8 @@ struct SceneView : public Gtk::Overlay
         : Gtk::Overlay(cobject)
     {
         area = builder->get_widget<Gtk::DrawingArea>("simulation");
-        right_side_pannel = builder->get_widget<Gtk::ScrolledWindow>("right_side_pannel");
+        right_side_pannel = Gtk::Builder::get_widget_derived<RightSidePannel>(builder,"right_side_pannel");
         add_overlay(*right_side_pannel);
-        properties = Gtk::Builder::get_widget_derived<ObjectProperties>(builder,"properties");
     }
 
     ~SceneView()
@@ -165,7 +187,7 @@ struct SceneView : public Gtk::Overlay
                     
                     if(!hit.name.empty()) {
                         auto objs = scene->get_active_objs();
-                        properties->parse(objs[hit.name]);
+                        right_side_pannel->parse(objs[hit.name]);
                     }
                     
                     right_side_pannel->set_visible(!hit.name.empty());
@@ -207,8 +229,7 @@ struct SceneView : public Gtk::Overlay
         return false;
     }
 
-    ObjectProperties* properties;
-    Gtk::ScrolledWindow* right_side_pannel;
+    RightSidePannel* right_side_pannel;
     Gtk::DrawingArea* area;
     double area_zoom_factor = 1.0,img_x,img_y;
     std::shared_ptr<Gdk::Pixbuf> img;
@@ -331,6 +352,7 @@ int main(int argc, char* argv[])
         // auto builder = Gtk::Builder::create_from_resource("/app.glade");
         auto builder = Gtk::Builder::create_from_file("./app.glade");
         builder->add_from_file("./object_properties.glade");
+        // builder->add_from_file("./camera3d_properties.glade");
         app->add_window(*Gtk::Builder::get_widget_derived<AppWindow>(builder,"app_window"));
     });
 

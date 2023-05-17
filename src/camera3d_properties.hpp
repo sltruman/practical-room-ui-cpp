@@ -27,10 +27,10 @@ static const boost::filesystem::path dir_static_objects = "./data/static_objects
 static const boost::filesystem::path dir_robots = "./data/robots";
 static const boost::filesystem::path dir_scenes = "./data/scenes";
 
-class ObjectProperties : public Gtk::ListBox 
+class Camera3DProperties : public Gtk::ListBox 
 {
 public:
-    ObjectProperties(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
+    Camera3DProperties(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
         : Gtk::ListBox(cobject),builder(builder)
     {
         auto dropdown_base = builder->get_widget<Gtk::ComboBox>("base");

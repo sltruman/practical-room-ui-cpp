@@ -45,8 +45,10 @@ friend class Workflow;
 public:
     Scene(int width,int height,string backend_path="./digitaltwin",string data_dir_path="./data");
     ~Scene();
+    string get_data_dir_path();
+    string get_backend_path();
     int load(string scene_path); //0：正常 1：后端启动失败;
-    int save();     
+    int save();
     int rtt(Texture& t);
     int play(bool run);
     int rotate(double x,double y);  
@@ -67,7 +69,8 @@ public:
     void set_log_func(std::function<void(char,string)> slot);
 
 private:
-    void sync_backend();
+    void sync_profile();
+    void sync_active_objs();
 
 protected:
     struct Plugin;
@@ -103,6 +106,7 @@ struct ActiveObject
 {
     ActiveObject(Scene* sp,string properties);
     virtual ~ActiveObject();
+    Scene* get_own_scene();
     int set_name(string name);
     string get_name();
     int set_base(string path);
@@ -121,6 +125,7 @@ struct ActiveObject
 
     struct Plugin;
     Plugin* md;
+
     Scene* scene;
     string name,kind,base;
     Vec3 pos,rot,scale;

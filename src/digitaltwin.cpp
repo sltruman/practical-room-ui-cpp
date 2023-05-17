@@ -60,6 +60,16 @@ Scene::~Scene()
     delete md;
 }
 
+string Scene::get_data_dir_path()
+{
+    return md->data_dir_path.string();
+}
+
+string Scene::get_backend_path()
+{
+    return md->backend_path.string();
+}
+
 int Scene::load(string scene_path) {
     if(scene_path.empty()) return 1;
     if(scene_path == md->scene_path) return 2;
@@ -126,7 +136,7 @@ SUCCEDED:
         cout << "Logging is finished." << endl;
     });
 
-    sync_backend();
+    sync_profile();
     return 0;
 }
 
@@ -223,7 +233,7 @@ int Scene::zoom(double factor)
     return 0;
 }
 
-void Scene::sync_backend()
+void Scene::sync_profile()
 {
     stringstream req;
     req << "scene.get_profile()" << endl;
@@ -235,47 +245,49 @@ void Scene::sync_backend()
     md->profile = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
 }
 
+void Scene::sync_active_objs()
+{
+    stringstream req;
+    req << "scene.get_active_obj_properties()" << endl;
+    cout << req.str() << endl;
+    asio::write(md->socket,asio::buffer(req.str()));
+    
+    asio::streambuf res;
+    asio::read_until(md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
+
+    for (auto i : json_res.items()) {
+        auto name = i.key();
+        auto properties = i.value();
+        auto description = properties.dump();
+        
+        ActiveObject* obj = nullptr;
+        auto it = md->active_objs_by_name.find(name);
+        if(it != md->active_objs_by_name.end()) continue;
+
+        auto kind = properties["kind"].get<string>();
+        if(kind == "Robot") {
+            obj = new Robot(this, description);
+        } else if(kind == "Camera3D") {
+            obj = new Camera3D(this, description);
+        }  else if(kind == "Camera3DReal") {
+            obj = new Camera3DReal(this, description);
+        } else if(kind == "Placer") {
+            obj = new Placer(this, description);
+        } else if(kind == "Stacker") {
+            obj = new Stacker(this, description);
+        } else {
+            obj = new ActiveObject(this, description);
+        }
+
+        md->active_objs_by_name[name] = obj;
+    }
+}
+
 map<string,ActiveObject*> Scene::get_active_objs()
 {
-    if (md->active_objs_by_name.empty()) {
-        stringstream req;
-        req << "scene.get_active_obj_properties()" << endl;
-        cout << req.str() << endl;
-        asio::write(md->socket,asio::buffer(req.str()));
-        
-        asio::streambuf res;
-        asio::read_until(md->socket, res,'\n');
-        auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-        cout << json_res.dump() << endl;
-
-        for (auto i : json_res.items()) {
-            auto name = i.key();
-            auto properties = i.value();
-            auto description = properties.dump();
-            
-            ActiveObject* obj = nullptr;
-            auto it = md->active_objs_by_name.find(name);
-            if(it != md->active_objs_by_name.end()) continue;
-
-            auto kind = properties["kind"].get<string>();
-            if(kind == "Robot") {
-                obj = new Robot(this, description);
-            } else if(kind == "Camera3D") {
-                obj = new Camera3D(this, description);
-            }  else if(kind == "Camera3DReal") {
-                obj = new Camera3DReal(this, description);
-            } else if(kind == "Placer") {
-                obj = new Placer(this, description);
-            } else if(kind == "Stacker") {
-                obj = new Stacker(this, description);
-            } else {
-                obj = new ActiveObject(this, description);
-            }
-
-            md->active_objs_by_name[name] = obj;
-        }
-    }
-
+    if(md->active_objs_by_name.empty()) sync_active_objs();
     return md->active_objs_by_name;
 }
 
@@ -365,7 +377,8 @@ int Editor::add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale,string& nam
     auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
     cout << json_res.dump() << endl;
     name = json_res["name"].get<string>();
-    scene->sync_backend();
+    
+    scene->sync_active_objs();
     return 0;
 }
 
@@ -412,8 +425,8 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
     auto json_properties = json::parse(properties);
     md->profile = json_properties;
 
-    name = json_properties["name"].get<string>().c_str();
     kind = json_properties["kind"].get<string>().c_str();
+    name = json_properties["name"].get<string>().c_str();
     base = json_properties["base"].get<string>().c_str();
     pos = json_properties["pos"].get<Vec3>();
     rot = json_properties["rot"].get<Vec3>();
@@ -426,6 +439,11 @@ ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
 
 ActiveObject::~ActiveObject() {
     delete md;
+}
+
+Scene* ActiveObject::get_own_scene()
+{
+    return scene;
 }
 
 int ActiveObject::set_name(string new_name)
