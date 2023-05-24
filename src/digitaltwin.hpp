@@ -140,6 +140,8 @@ struct Robot : public ActiveObject
     int set_end_effector(string path);
     string get_end_effector();
     int digital_output(bool pickup);
+    vector<float> get_joints();
+    int set_joints(vector<float> vals);
     int get_joints_num();
     int set_joint_position(int joint_index,float value);
     float get_joint_position(int joint_index);
@@ -168,8 +170,15 @@ struct Camera3D : public ActiveObject
     void set_rtt_func(std::function<void(vector<unsigned char>,vector<float>,int,int)> slot);  //获取虚拟相机数据，RGB，Depth
     std::function<void(vector<unsigned char>,vector<float>,int,int)> slot_rtt;
     int clear();
+    void draw_fov(bool show=true);
+    void draw_roi(bool show=true);
     int set_roi(Vec3 pos,Vec3 rot,Vec3 size);
     void get_roi(Vec3& pos,Vec3& rot,Vec3& size);
+    int set_fov(float fov);
+    float get_fov();
+    int set_focal(float focal);
+    float get_focal();
+
     string get_intrinsics();
     
     vector<unsigned char> rgba_pixels;
@@ -205,9 +214,9 @@ struct Placer : public ActiveObject
 {
     Placer(Scene* sp,string properties);
     virtual ~Placer() {}
-    string get_workpiece() { return ""; }
+    string get_workpiece();
     int set_workpiece(string base);
-    string get_workpiece_texture() { return ""; }
+    string get_workpiece_texture();
     int set_workpiece_texture(string texture);
     Vec3 get_center();
     int set_center(Vec3 pos);

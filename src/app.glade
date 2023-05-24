@@ -34,7 +34,7 @@
         </child>
         <child type="title">
           <object class="GtkLabel">
-            <property name="label">DigitalTwin</property>
+            <property name="label"></property>
           </object>
         </child>
 

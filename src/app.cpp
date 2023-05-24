@@ -1,3 +1,8 @@
+#include "object_properties.hpp"
+#include "camera3d_properties.hpp"
+#include "robot_properties.hpp"
+#include "placer_properties.hpp"
+#include "stacker_properties.hpp"
 #include <locale.h>
 
 #include <opencv2/opencv.hpp>
@@ -20,12 +25,10 @@ using namespace boost;
 #include "digitaltwin.hpp"
 using namespace digitaltwin;
 
-#include "object_properties.hpp"
-
-static const boost::filesystem::path scene_dir_path = "./data/scenes";
 
 struct TemplateView : public Gtk::ScrolledWindow
 {
+    boost::filesystem::path scene_dir = "./data/scenes";
     sigc::signal<void(string)> signal_selected;
 
     Gtk::FlowBox* template_list;
@@ -35,7 +38,15 @@ struct TemplateView : public Gtk::ScrolledWindow
         : Gtk::ScrolledWindow(cobject)
         , template_list(builder->get_widget<Gtk::FlowBox>("template_list"))
     {
-        for (auto fileitem : boost::filesystem::recursive_directory_iterator(scene_dir_path)) { 
+        refresh();
+    }
+
+    void refresh()
+    {
+        for(auto t : templates) template_list->remove(*t);
+        templates.clear();
+
+        for (auto fileitem : boost::filesystem::recursive_directory_iterator(scene_dir)) { 
             auto filepath = fileitem.path();
             auto ext = filepath.extension();
             if (".json" != ext) continue;
@@ -44,11 +55,11 @@ struct TemplateView : public Gtk::ScrolledWindow
             
             auto t = templates.emplace_back(make_shared<Gtk::Button>());
             Gtk::Box box(Gtk::Orientation::VERTICAL);
-            Gtk::Image img; img.set_expand();            
-            if (boost::filesystem::exists(img_path))  {
+            Gtk::Image img; img.set_expand();
+            if (boost::filesystem::exists(img_path)) {
                 img.set_pixel_size(150);
                 img.property_file().set_value(img_path.string());
-            } else {
+            } else { 
                 img.set_pixel_size(100);
                 img.set_from_icon_name("application-x-appliance-symbolic");
             }
@@ -73,14 +84,15 @@ struct RightSidePannel : public Gtk::ScrolledWindow
         : Gtk::ScrolledWindow(cobject)
         , content(builder->get_widget<Gtk::Viewport>("content"))
     {
-        contents["Camera3DReal"] = contents["Camera3D"] = contents["Robot"] = contents["ActiveObject"] = Gtk::Builder::get_widget_derived<ObjectProperties>(builder,"object_properties");
-        // contents["Camera3DReal"] = contents["Camera3D"] = Gtk::Builder::get_widget_derived<Camera3DProperties>(builder,"camera3d_properties");
-        // contents["Robot"] = Gtk::Builder::get_widget_derived<RobotProperties>(builder,"robot_properties");
-    }                                                                                    
+        contents["ActiveObject"] = Gtk::Builder::get_widget_derived<ObjectProperties>(Gtk::Builder::create_from_file("./object_properties.glade"), "object_properties");
+        contents["Robot"] = Gtk::Builder::get_widget_derived<RobotProperties>(Gtk::Builder::create_from_file("./robot_properties.glade"), "robot_properties");
+        contents["Camera3DReal"] = contents["Camera3D"] = Gtk::Builder::get_widget_derived<Camera3DProperties>(Gtk::Builder::create_from_file("./camera3d_properties.glade"), "camera3d_properties");
+        contents["Placer"] = Gtk::Builder::get_widget_derived<PlacerProperties>(Gtk::Builder::create_from_file("./placer_properties.glade"), "placer_properties");
+        contents["Stacker"] = Gtk::Builder::get_widget_derived<StackerProperties>(Gtk::Builder::create_from_file("./stacker_properties.glade"), "stacker_properties");
+    }
 
     void parse(ActiveObject* obj) {
         auto kind = obj->get_kind();
-        
         auto properties = contents[kind];
         properties->parse(obj);
         content->set_child(*properties);
@@ -107,11 +119,21 @@ struct SceneView : public Gtk::Overlay
     {
         close();
 
-        scene = make_shared<Scene>(800,640,"./digitaltwin","./data");
+        scene = make_shared<Scene>(1024,768,"./digitaltwin","./data");
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
         scene->load(scene_path);
+        
+        Glib::signal_timeout().connect_once([this,scene_path]() {
+            Texture texture;
+            scene->rtt(texture);
 
+            cv::Mat rgba(cv::Size(texture.width,texture.height),CV_8UC4);
+            memcpy(rgba.ptr<unsigned char>(), texture.rgba_pixels, texture.width * texture.height *4);
+            cv::cvtColor(rgba,rgba,cv::COLOR_RGBA2BGRA);
+            cv::imwrite(scene_path + ".png",rgba);
+        },100);
+        
         area->set_draw_func(sigc::mem_fun(*this, &SceneView::area_paint_event));
         controller = Gtk::EventControllerLegacy::create();
         controller->signal_event().connect(sigc::mem_fun(*this,&SceneView::area_drag_event),false);
@@ -130,15 +152,14 @@ struct SceneView : public Gtk::Overlay
 
     void area_paint_event(const Cairo::RefPtr<Cairo::Context>& cr, int area_w, int area_h)
     {
-        Glib::signal_timeout().connect_once([this]() { area->queue_draw(); }, 1000 / 24);
-        
         cr->set_source_rgb(40 / 255.,40 / 255.,40 / 255.);
         cr->paint();
 
         Texture texture;
         scene->rtt(texture);
-        
-        if(texture.rgba_pixels == nullptr) return ;
+
+        if(texture.rgba_pixels == nullptr) return;
+        Glib::signal_timeout().connect_once([this]() { if (scene) area->queue_draw(); }, 1000 / 24 );
 
         auto aspect_ratio = 1. * texture.width / texture.height;
         auto aspect_ratio2 = 1. * area_w / area_h;
@@ -275,15 +296,16 @@ public:
         });
 
         auto controller = Gtk::GestureClick::create();
-        controller->signal_pressed().connect([this](int,double,double){
+        controller->signal_pressed().connect([this](int,double,double) {
             button_edit->set_visible(false);
             button_workflow->set_visible(false);
             button_start->set_visible(false);
             button_stop->set_visible(false);
             button_anchor->set_visible(false);
             scene_view->close();
+            template_view->refresh();
         });
-        view_switcher->add_controller(controller);   
+        view_switcher->add_controller(controller);
     }
 
     ~AppWindow()
@@ -351,8 +373,6 @@ int main(int argc, char* argv[])
     app->signal_activate().connect([app]() {
         // auto builder = Gtk::Builder::create_from_resource("/app.glade");
         auto builder = Gtk::Builder::create_from_file("./app.glade");
-        builder->add_from_file("./object_properties.glade");
-        // builder->add_from_file("./camera3d_properties.glade");
         app->add_window(*Gtk::Builder::get_widget_derived<AppWindow>(builder,"app_window"));
     });
 

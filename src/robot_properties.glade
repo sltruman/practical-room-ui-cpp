@@ -1,0 +1,523 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+    <requires lib="gtk+" version="4.00" />
+    <object class="GtkListBox" id="robot_properties">
+        <property name="selection-mode">none</property>
+        <property name="show-separators">1</property>
+        <property name="width-request">400</property>
+        <style>
+            <class name="rich-list" />
+        </style>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkLabel">
+                        <property name="label">ActiveObject</property>
+                        <attributes>
+                            <attribute name="weight" value="PANGO_WEIGHT_BOLD" />
+                        </attributes>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Name</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkLabel" id="name">
+                                <property name="label">object</property>
+                                <property name="halign">end</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Base</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkDropDown" id="base">
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">X</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="x">
+                                <property name="digits">2</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">100</property>
+                                        <property name="lower">-100</property>
+                                        <property name="step-increment">0.01</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Y</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="y">
+                                <property name="digits">2</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">100</property>
+                                        <property name="lower">-100</property>
+                                        <property name="step-increment">0.01</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Z</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="z">
+                                <property name="digits">2</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">100</property>
+                                        <property name="lower">-100</property>
+                                        <property name="step-increment">0.01</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">RX</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="rx">
+                                <property name="digits">0</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">RY</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="ry">
+                                <property name="digits">0</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">RZ</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="rz">
+                                <property name="digits">0</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkLabel" id="kind">
+                        <property name="label">Robot</property>
+                        <attributes>
+                            <attribute name="weight" value="PANGO_WEIGHT_BOLD" />
+                        </attributes>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">EndEffector</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkDropDown" id="end_effector">
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow" id="row_joint1">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Joint 1</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkScale" id="joint1">
+                                <property name="digits">0</property>
+                                <property name="draw-value">True</property>
+                                <property name="has-origin">True</property>
+                                <property name="value-pos">right</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow"  id="row_joint2">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Joint 2</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkScale" id="joint2">
+                                <property name="digits">0</property>
+                                <property name="draw-value">True</property>
+                                <property name="has-origin">True</property>
+                                <property name="value-pos">right</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow"  id="row_joint3">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Joint 3</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkScale" id="joint3">
+                                <property name="digits">0</property>
+                                <property name="draw-value">True</property>
+                                <property name="has-origin">True</property>
+                                <property name="value-pos">right</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow"  id="row_joint4">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Joint 4</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkScale" id="joint4">
+                                <property name="digits">0</property>
+                                <property name="draw-value">True</property>
+                                <property name="has-origin">True</property>
+                                <property name="value-pos">right</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow" id="row_joint5">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Joint 5</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkScale" id="joint5">
+                                <property name="digits">0</property>
+                                <property name="draw-value">True</property>
+                                <property name="has-origin">True</property>
+                                <property name="value-pos">right</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow"  id="row_joint6">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Joint 6</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkScale" id="joint6">
+                                <property name="digits">0</property>
+                                <property name="draw-value">True</property>
+                                <property name="has-origin">True</property>
+                                <property name="value-pos">right</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow"  id="row_joint7">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Joint 7</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkScale" id="joint7">
+                                <property name="digits">0</property>
+                                <property name="draw-value">True</property>
+                                <property name="has-origin">True</property>
+                                <property name="value-pos">right</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <property name="visible">False</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkButton" id="file">
+                                <property name="label">File</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkEntry" id="route_joint_positions">
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+    </object>
+</interface>

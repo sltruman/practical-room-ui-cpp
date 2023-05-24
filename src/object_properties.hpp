@@ -1,3 +1,9 @@
+#ifndef OBJECT_PROPERTIES_HPP
+#define OBJECT_PROPERTIES_HPP
+
+#include "digitaltwin.hpp"
+using namespace digitaltwin;
+
 #include <locale.h>
 
 #include <opencv2/opencv.hpp>
@@ -16,41 +22,47 @@ using namespace std;
 #include <boost/filesystem.hpp>
 using namespace boost;
 
-#include "digitaltwin.hpp"
-using namespace digitaltwin;
-
-
 
 struct ObjectProperties : public Gtk::ListBox 
 {
-    const boost::filesystem::path base_dir_path;
+    boost::filesystem::path base_dir;
     Glib::RefPtr<Gtk::Builder> builder;
     Gtk::DropDown* dropdown_base;
-    sigc::connection sig_base;
+    Gtk::SpinButton *spin_x,*spin_y,*spin_z,*spin_rx,*spin_ry,*spin_rz;
+    sigc::connection sig_base,sig_x,sig_y,sig_z,sig_rx,sig_ry,sig_rz;
     ActiveObject* active_obj;
 
     ObjectProperties(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
         : Gtk::ListBox(cobject),builder(builder)
-        , base_dir_path("./objects")
+        , base_dir("./objects")
     {
         dropdown_base = builder->get_widget<Gtk::DropDown>("base");
+        dropdown_base->set_data("base_path",new vector<string>());
+        spin_x = builder->get_widget<Gtk::SpinButton>("x");
+        spin_y = builder->get_widget<Gtk::SpinButton>("y");
+        spin_z = builder->get_widget<Gtk::SpinButton>("z");
+        spin_rx = builder->get_widget<Gtk::SpinButton>("rx");
+        spin_ry = builder->get_widget<Gtk::SpinButton>("ry");
+        spin_rz = builder->get_widget<Gtk::SpinButton>("rz");
     }
 
-    sigc::connection base_signal_changed,end_effector_signal_changed,rtt_signal_click;
-
-    void parse(ActiveObject* active_obj)
+    virtual ~ObjectProperties() 
     {
+        
+    }
+
+    virtual void parse(ActiveObject* active_obj)
+    {   
         this->active_obj = active_obj;
 
-        auto entry_kind = builder->get_widget<Gtk::Label>("kind");
+        sig_x.disconnect();
+        sig_y.disconnect();
+        sig_z.disconnect();
+        sig_rx.disconnect();
+        sig_ry.disconnect();
+        sig_rz.disconnect();
         
-        auto spin_x = builder->get_object<Gtk::SpinButton>("x");
-        auto spin_y = builder->get_object<Gtk::SpinButton>("y");
-        auto spin_z = builder->get_object<Gtk::SpinButton>("z");
-        auto spin_rx = builder->get_object<Gtk::SpinButton>("rx");
-        auto spin_ry = builder->get_object<Gtk::SpinButton>("ry");
-        auto spin_rz = builder->get_object<Gtk::SpinButton>("rz");
-
+        auto entry_kind = builder->get_widget<Gtk::Label>("kind");
         entry_kind->set_text(active_obj->get_kind());
 
         auto pos = active_obj->get_pos();
@@ -63,6 +75,13 @@ struct ObjectProperties : public Gtk::ListBox
         spin_ry->set_value(rot[1] * 180 / M_PI);
         spin_rz->set_value(rot[2] * 180 / M_PI);
 
+        sig_x = spin_x->signal_value_changed().connect(sigc::mem_fun(*this, &ObjectProperties::on_pos_changed));
+        sig_y = spin_y->signal_value_changed().connect(sigc::mem_fun(*this, &ObjectProperties::on_pos_changed));
+        sig_z = spin_z->signal_value_changed().connect(sigc::mem_fun(*this, &ObjectProperties::on_pos_changed));
+        sig_rx = spin_rx->signal_value_changed().connect(sigc::mem_fun(*this, &ObjectProperties::on_rot_changed));
+        sig_ry = spin_ry->signal_value_changed().connect(sigc::mem_fun(*this, &ObjectProperties::on_rot_changed));
+        sig_rz = spin_rz->signal_value_changed().connect(sigc::mem_fun(*this, &ObjectProperties::on_rot_changed));
+
         sig_base.disconnect();
         auto base = active_obj->get_base();
         auto model = Gtk::StringList::create({});
@@ -71,16 +90,15 @@ struct ObjectProperties : public Gtk::ListBox
         auto scene = active_obj->get_own_scene();
         
         boost::filesystem::path data_dir = scene->get_data_dir_path();
-        for (auto fileitem : boost::filesystem::directory_iterator(data_dir / base_dir_path)) { 
+        for (auto fileitem : boost::filesystem::directory_iterator(data_dir / base_dir)) { 
             auto dirpath = fileitem.path();
             auto dirname = dirpath.filename().string();
-            auto filename = dirpath.filename().string() + ".urdf";
+            auto filename = dirname + ".urdf";
             auto filepath = dirpath / filename;
             if(!boost::filesystem::exists(filepath)) continue;
             model->append(dirpath.filename().string());
-
-            auto base_path = base_dir_path / dirname / filename;
-            dropdown_base->set_data(dirname.c_str(),new string(base_path.string()));
+            auto base_path = (base_dir / dirname / filename).string();
+            dropdown_base->set_data(dirname.c_str(),new string(base_path),[](gpointer data) {delete reinterpret_cast<string*>(data);});
             if(string::npos != base.find(filename)) dropdown_base->set_selected(model->get_n_items()-1);
         }
         
@@ -90,10 +108,19 @@ struct ObjectProperties : public Gtk::ListBox
     void on_base_changed()
     {
         auto so = dynamic_pointer_cast<Gtk::StringObject>(dropdown_base->get_selected_item());
-        cout << so->get_string() << endl;
-        auto s = reinterpret_cast<string*>(dropdown_base->get_data(so->get_string()));
-        active_obj->set_base(*s);
-        delete s;
+        active_obj->set_base(*reinterpret_cast<string*>(dropdown_base->get_data(so->get_string())));
     }
 
+    void on_pos_changed()
+    {
+        active_obj->set_pos({spin_x->get_value(),spin_y->get_value(),spin_z->get_value()});
+    }
+
+    void on_rot_changed()
+    {
+        active_obj->set_rot({spin_rx->get_value() / 180 * M_PI,spin_ry->get_value() / 180 * M_PI,spin_rz->get_value() / 180 * M_PI});
+    }
+    
 };
+
+#endif
