@@ -3,5 +3,9 @@
   <gresource prefix="/">
     <file preprocess="xml-stripblanks">app.glade</file>
     <file preprocess="xml-stripblanks">object_properties.glade</file>
+    <file preprocess="xml-stripblanks">robot_properties.glade</file>
+    <file preprocess="xml-stripblanks">camera3d_properties.glade</file>
+    <file preprocess="xml-stripblanks">placer_properties.glade</file>
+    <file preprocess="xml-stripblanks">stacker_properties.glade</file>
   </gresource>
 </gresources>

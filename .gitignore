@@ -34,3 +34,4 @@ src/digitaltwin
 src/resources.c
 src/app.glade~
 src/app
+src/digitaltwin_data

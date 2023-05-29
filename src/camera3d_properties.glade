@@ -4,6 +4,7 @@
     <object class="GtkListBox" id="camera3d_properties">
         <property name="selection-mode">none</property>
         <property name="show-separators">1</property>
+        <property name="width-request">400</property>
         <style>
             <class name="rich-list" />
         </style>
@@ -11,15 +12,37 @@
             <object class="GtkListBoxRow">
                 <property name="activatable">0</property>
                 <child>
-                    <object class="GtkLabel" id="general">
-                        <property name="label">General</property>
+                    <object class="GtkLabel">
+                        <property name="label">ActiveObject</property>
                         <attributes>
                             <attribute name="weight" value="PANGO_WEIGHT_BOLD" />
                         </attributes>
                     </object>
                 </child>
             </object>
-        </child>     
+        </child>
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">Name</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkLabel" id="name">
+                                <property name="label">camera</property>
+                                <property name="halign">end</property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
         <child>
             <object class="GtkListBoxRow">
                 <property name="activatable">0</property>
@@ -33,7 +56,8 @@
                             </object>
                         </child>
                         <child>
-                            <object class="GtkComboBox" id="base"></object>
+                            <object class="GtkDropDown" id="base">
+                            </object>
                         </child>
                     </object>
                 </child>
@@ -53,7 +77,8 @@
                         </child>
                         <child>
                             <object class="GtkSpinButton" id="x">
-                                <property name="digits">3</property>
+                                <property name="digits">2</property>
+                                <property name="numeric">True</property>
                                 <property name="adjustment">
                                     <object class="GtkAdjustment">
                                         <property name="upper">100</property>
@@ -70,6 +95,7 @@
         <child>
             <object class="GtkListBoxRow">
                 <property name="activatable">0</property>
+                
                 <child>
                     <object class="GtkBox">
                         <property name="homogeneous">1</property>
@@ -81,7 +107,8 @@
                         </child>
                         <child>
                             <object class="GtkSpinButton" id="y">
-                                <property name="digits">3</property>
+                                <property name="digits">2</property>
+                                <property name="numeric">True</property>
                                 <property name="adjustment">
                                     <object class="GtkAdjustment">
                                         <property name="upper">100</property>
@@ -109,7 +136,8 @@
                         </child>
                         <child>
                             <object class="GtkSpinButton" id="z">
-                                <property name="digits">3</property>
+                                <property name="digits">2</property>
+                                <property name="numeric">True</property>
                                 <property name="adjustment">
                                     <object class="GtkAdjustment">
                                         <property name="upper">100</property>
@@ -131,134 +159,18 @@
                         <property name="homogeneous">1</property>
                         <child>
                             <object class="GtkLabel">
-                                <property name="label">Roll</property>
+                                <property name="label">RX</property>
                                 <property name="halign">start</property>
                             </object>
                         </child>
                         <child>
-                            <object class="GtkSpinButton" id="roll">
-                                <property name="digits">3</property>
+                            <object class="GtkSpinButton" id="rx">
+                                <property name="digits">0</property>
+                                <property name="numeric">True</property>
                                 <property name="adjustment">
                                     <object class="GtkAdjustment">
                                         <property name="upper">180</property>
                                         <property name="lower">-180</property>
-                                        <property name="step-increment">0.1</property>
-                                    </object>
-                                </property>
-                            </object>
-                        </child>
-                    </object>
-                </child>
-            </object>
-        </child>
-        <child>
-            <object class="GtkListBoxRow">
-                <property name="activatable">0</property>
-                <child>
-                    <object class="GtkBox">
-                        <property name="homogeneous">1</property>
-                        <child>
-                            <object class="GtkLabel">
-                                <property name="label">Pitch</property>
-                                <property name="halign">start</property>
-                            </object>
-                        </child>
-                        <child>
-                            <object class="GtkSpinButton" id="pitch">
-                                <property name="digits">3</property>
-                                <property name="adjustment">
-                                    <object class="GtkAdjustment">
-                                        <property name="upper">180</property>
-                                        <property name="lower">-180</property>
-                                        <property name="step-increment">0.1</property>
-                                    </object>
-                                </property>
-                            </object>
-                        </child>
-                    </object>
-                </child>
-            </object>
-        </child>
-        <child>
-            <object class="GtkListBoxRow">
-                <property name="activatable">0</property>
-                <child>
-                    <object class="GtkBox">
-                        <property name="homogeneous">1</property>
-                        <child>
-                            <object class="GtkLabel">
-                                <property name="label">Yaw</property>
-                                <property name="halign">start</property>
-                            </object>
-                        </child>
-                        <child>
-                            <object class="GtkSpinButton" id="yaw">
-                                <property name="digits">3</property>
-                                <property name="adjustment">
-                                    <object class="GtkAdjustment">
-                                        <property name="upper">180</property>
-                                        <property name="lower">-180</property>
-                                        <property name="step-increment">0.1</property>
-                                    </object>
-                                </property>
-                            </object>
-                        </child>
-                    </object>
-                </child>
-            </object>
-        </child>
-        <child>
-            <object class="GtkListBoxRow">
-                <property name="activatable">0</property>
-                <child>
-                    <object class="GtkLabel" id="kind">
-                        <property name="label">Kind</property>
-                        <attributes>
-                            <attribute name="weight" value="PANGO_WEIGHT_BOLD" />
-                        </attributes>
-                    </object>
-                </child>
-            </object>
-        </child>
-        <child>
-            <object class="GtkListBoxRow" id="row_end_effector">
-                <property name="activatable">0</property>
-                <child>
-                    <object class="GtkBox">
-                        <property name="homogeneous">1</property>
-                        <child>
-                            <object class="GtkLabel">
-                                <property name="label">EndEffector</property>
-                                <property name="halign">start</property>
-                            </object>
-                        </child>
-                        <child>
-                            <object class="GtkComboBox" id="end_effector"></object>
-                        </child>
-                    </object>
-                </child>
-            </object>
-        </child>
-        <child>
-            <object class="GtkListBoxRow" id="row_width">
-                <property name="activatable">0</property>
-                <child>
-                    <object class="GtkBox">
-                        <property name="homogeneous">1</property>
-                        <child>
-                            <object class="GtkLabel">
-                                <property name="label">Fov</property>
-                                <property name="halign">start</property>
-                            </object>
-                        </child>
-                        <child>
-                            <object class="GtkSpinButton" id="fov">
-                                <property name="digits">3</property>
-                                <property name="adjustment">
-                                    <object class="GtkAdjustment">
-                                        <property name="upper">60</property>
-                                        <property name="lower">1</property>
-                                        <property name="value">45</property>
                                         <property name="step-increment">1</property>
                                     </object>
                                 </property>
@@ -269,6 +181,80 @@
             </object>
         </child>
         <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">RY</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="ry">
+                                <property name="digits">0</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkBox">
+                        <property name="homogeneous">1</property>
+                        <child>
+                            <object class="GtkLabel">
+                                <property name="label">RZ</property>
+                                <property name="halign">start</property>
+                            </object>
+                        </child>
+                        <child>
+                            <object class="GtkSpinButton" id="rz">
+                                <property name="digits">0</property>
+                                <property name="numeric">True</property>
+                                <property name="adjustment">
+                                    <object class="GtkAdjustment">
+                                        <property name="upper">180</property>
+                                        <property name="lower">-180</property>
+                                        <property name="step-increment">1</property>
+                                    </object>
+                                </property>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
+
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkLabel" id="kind">
+                        <property name="label">Camera3D</property>
+                        <attributes>
+                            <attribute name="weight" value="PANGO_WEIGHT_BOLD" />
+                        </attributes>
+                    </object>
+                </child>
+            </object>
+        </child>
+                
+        <child>
             <object class="GtkListBoxRow" id="row_height">
                 <property name="activatable">0</property>
                 <child>
@@ -276,19 +262,19 @@
                         <property name="homogeneous">1</property>
                         <child>
                             <object class="GtkLabel">
-                                <property name="label">Forcal</property>
+                                <property name="label">Focal</property>
                                 <property name="halign">start</property>
                             </object>
                         </child>
                         <child>
-                            <object class="GtkSpinButton" id="forcal">
+                            <object class="GtkSpinButton" id="focal">
                                 <property name="digits">3</property>
                                 <property name="adjustment">
                                     <object class="GtkAdjustment">
-                                        <property name="upper">10</property>
-                                        <property name="lower">0.01</property>
+                                        <property name="upper">1</property>
+                                        <property name="lower">0.001</property>
                                         <property name="value">0.01</property>
-                                        <property name="step-increment">0.01</property>
+                                        <property name="step-increment">0.001</property>
                                     </object>
                                 </property>
                             </object>
@@ -304,18 +290,29 @@
                     <object class="GtkBox">
                         <property name="orientation">vertical</property>
                         <child>
-                            <object class="GtkButton" id="rtt">
-                                <property name="label">capture</property>
+                            <object class="GtkBox" id="box_capture">
+                                <property name="orientation">vertical</property>
+                                <child>
+                                    <object class="GtkButton" id="capture">
+                                        <property name="label">capture</property>
+                                    </object>
+                                </child>
+                                <child>
+                                    <object class="GtkLabel" id="save">
+                                        <property name="label"></property>
+                                        <property name="wrap">True</property>
+                                    </object>
+                                </child>
                             </object>
                         </child>
                         <child>
                             <object class="GtkPicture" id="texture">
-                                <property name="content-fit">fill</property>
+                                <property name="content-fit">contain</property>
                             </object>
                         </child>
                         <child>
                             <object class="GtkPicture" id="texture_depth">
-                                <property name="content-fit">fill</property>
+                                <property name="content-fit">contain</property>
                             </object>
                         </child>
                     </object>

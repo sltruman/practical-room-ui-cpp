@@ -28,7 +28,7 @@ using namespace digitaltwin;
 
 struct TemplateView : public Gtk::ScrolledWindow
 {
-    boost::filesystem::path scene_dir = "./data/scenes";
+    boost::filesystem::path scene_dir = "./digitaltwin_data/scenes";
     sigc::signal<void(string)> signal_selected;
 
     Gtk::FlowBox* template_list;
@@ -91,7 +91,8 @@ struct RightSidePannel : public Gtk::ScrolledWindow
         contents["Stacker"] = Gtk::Builder::get_widget_derived<StackerProperties>(Gtk::Builder::create_from_file("./stacker_properties.glade"), "stacker_properties");
     }
 
-    void parse(ActiveObject* obj) {
+    void parse(ActiveObject* obj) 
+    {
         auto kind = obj->get_kind();
         auto properties = contents[kind];
         properties->parse(obj);
@@ -119,7 +120,7 @@ struct SceneView : public Gtk::Overlay
     {
         close();
 
-        scene = make_shared<Scene>(1024,768,"./digitaltwin","./data");
+        scene = make_shared<Scene>(1024,768,"./digitaltwin","./digitaltwin_data");
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
         scene->load(scene_path);

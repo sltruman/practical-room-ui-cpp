@@ -67,6 +67,9 @@ public:
     string get_ground_texture();
     map<string,ActiveObject*> get_active_objs();
     void set_log_func(std::function<void(char,string)> slot);
+    int set_user_data(string value);
+    string get_user_data();
+
 
 private:
     void sync_profile();
@@ -91,6 +94,9 @@ public:
     int ray(double x,double y,RayInfo& info);
     int select(string name);
     int add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale,string& name);
+    int add_box(Vec3 pos,Vec3 rot,Vec3 size,int thickness,string& name);
+    int add_cube(Vec3 pos,Vec3 rot,Vec3 size,string& name);
+    int add_cylinder(Vec3 pos,Vec3 rot,int radius,int length,string& name);
     int remove(string name);
     int set_relation(string parent,string child);
     list<Relation> get_relations();
@@ -140,6 +146,7 @@ struct Robot : public ActiveObject
     int set_end_effector(string path);
     string get_end_effector();
     int digital_output(bool pickup);
+    bool is_picking();
     vector<float> get_joints();
     int set_joints(vector<float> vals);
     int get_joints_num();

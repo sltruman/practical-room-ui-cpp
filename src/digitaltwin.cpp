@@ -34,6 +34,8 @@ struct Scene::Plugin
     string scene_path;
     json profile;
     map<string,ActiveObject*> active_objs_by_name;
+
+    string user_data;
 };
 
 Scene::Scene(int width,int height,string backend_path,string data_dir_path)
@@ -57,7 +59,7 @@ Scene::~Scene()
     }
 
     md->logging.join();
-    
+
     delete md;
 }
 
@@ -82,7 +84,8 @@ int Scene::load(string scene_path) {
             md->backend_process->wait();
         }
 
-        md->tmp_dir_path = boost::filesystem::temp_directory_path().append("digitaltwin") / to_string(this_process::get_id());
+        auto digitaltwin_dir = boost::filesystem::temp_directory_path().append("digitaltwin");
+        md->tmp_dir_path = digitaltwin_dir / to_string(this_process::get_id());
         
         stringstream ss;
         ss << md->backend_path << ' '
@@ -248,6 +251,8 @@ void Scene::sync_profile()
     asio::streambuf res;
     asio::read_until(md->socket, res,'\n');
     md->profile = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    
+    if( md->profile.contains("user_data")) md->user_data =  md->profile["user_data"].get<string>().c_str();
 }
 
 void Scene::sync_active_objs()
@@ -329,6 +334,22 @@ void Scene::set_log_func(std::function<void(char,string)> slot)
     md->slot_log = slot;
 }
 
+int Scene::set_user_data(string value) 
+{
+    md->user_data = value;
+
+    stringstream req;
+    req << "scene.set_user_data('" << value << "')"<<endl;
+    cout << req.str();
+    asio::write(md->socket,  asio::buffer(req.str()));
+    return 0;
+}
+
+string Scene::get_user_data()
+{
+    return md->user_data;
+}
+
 struct Editor::Plugin {
 
 
@@ -375,6 +396,54 @@ int Editor::add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale,string& nam
 {
     stringstream req;
     req << "editor.add('"<<kind<<"','"<<base<<"',[" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "],"<<scale[0]<<")" << endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
+    if(json_res.empty()) return 1;
+    name = json_res["name"].get<string>();
+    scene->sync_active_objs();
+    return 0;
+}
+
+int Editor::add_box(Vec3 pos,Vec3 rot,Vec3 size,int thickness,string& name) 
+{
+    stringstream req;
+    req << "editor.add_box([" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "],[" << size[0]<<","<<size[1]<<","<<size[2]<< "],"<<thickness<<")" << endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
+    if(json_res.empty()) return 1;
+    name = json_res["name"].get<string>();
+    scene->sync_active_objs();
+    return 0;
+}
+
+int Editor::add_cube(Vec3 pos,Vec3 rot,Vec3 size,string& name) 
+{
+    stringstream req;
+    req << "editor.add_cube([" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "],[" << size[0]<<","<<size[1]<<","<<size[2]<< "])" << endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    cout << json_res.dump() << endl;
+    if(json_res.empty()) return 1;
+    name = json_res["name"].get<string>();
+    scene->sync_active_objs();
+    return 0;
+}
+
+int Editor::add_cylinder(Vec3 pos,Vec3 rot,int radius,int length,string& name)
+{
+    stringstream req;
+    req << "editor.add_cylinder([" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "]," <<radius<<","<<length<<")" << endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
@@ -566,8 +635,8 @@ Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
     json_properties["speed"].get<float>();
     current_joint_poses = json_properties["current_joint_poses"].get<vector<float>>();
     home_joint_poses = json_properties["reset_joint_poses"].get<vector<float>>();
-    end_effector_pos = {0,0,0};
-    end_effector_rot = {0,0,0};
+    end_effector_pos = json_properties["end_effector_pos"].get<Vec3>();
+    end_effector_rot = json_properties["end_effector_rot"].get<Vec3>();
 }
 
 int Robot::set_end_effector(string path)
@@ -577,16 +646,7 @@ int Robot::set_end_effector(string path)
     req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector('"<<path<<"')"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
-
-    req2 << "scene.active_objs_by_name['"<<name<<"'].get_joints()"<<endl;
-    cout << req2.str();
-    asio::write(scene->md->socket,  asio::buffer(req2.str()));
-    asio::streambuf res;
-    asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    current_joint_poses.clear();
-    for(auto& item : json_res) current_joint_poses.push_back(item);
-    home_joint_poses = current_joint_poses;
+    home_joint_poses = get_joints();
     return 0;
 }
 
@@ -601,15 +661,36 @@ int Robot::digital_output(bool pickup)
     return 0;
 }
 
+bool Robot::is_picking()
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].end_effector_obj.get_properties()"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    auto ee_kind = json_res["kind"].get<string>();
+    if(ee_kind == "EndEffector") return false;
+    return json_res["picking"].get<bool>();
+}
+
 vector<float> Robot::get_joints()
 {
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].get_joints()"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    current_joint_poses = json_res.get<vector<float>>();
     return current_joint_poses;
 }
 
 int Robot::set_joints(vector<float> vals)
 {
     current_joint_poses = vals;
-
     stringstream req,args;
     for (auto i : current_joint_poses) args << i << ",";
     args.seekp(-1,ios::cur);
@@ -622,7 +703,7 @@ int Robot::set_joints(vector<float> vals)
 
 int Robot::get_joints_num()
 {
-    return current_joint_poses.size();
+    return get_joints().size();
 }
 
 int Robot::set_joint_position(int joint_index,float value)
@@ -641,42 +722,59 @@ int Robot::set_joint_position(int joint_index,float value)
 
 float Robot::get_joint_position(int joint_index)
 {
-    return current_joint_poses[joint_index];
+    return get_joints()[joint_index];
 }
 
 int Robot::set_end_effector_pos(Vec3 pos)
 {
+    end_effector_pos = pos;
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector_pos([" << pos[0] << ',' << pos[0] << ',' << pos[2] << "])"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector_pose([" << end_effector_pos[0] << ',' << end_effector_pos[1] << ',' << end_effector_pos[2] << ',' << end_effector_rot[0] << ',' << end_effector_rot[1] << ',' << end_effector_rot[2] << "])"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
-    end_effector_pos = pos;
     return 0;
 }
 
 Vec3 Robot::get_end_effector_pos()
 {
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].get_end_effector_pose()"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    
+    end_effector_pos = {json_res[0].get<float>(),json_res[1].get<float>(),json_res[2].get<float>()};
     return end_effector_pos;
 }
 
 int Robot::set_end_effector_rot(Vec3 rot)
 {
+    end_effector_rot = rot;
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector_rot([" << rot[0] << ',' << rot[0] << ',' << rot[2] << "])"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].set_end_effector_pose([" << end_effector_pos[0] << ',' << end_effector_pos[1] << ',' << end_effector_pos[2] << ',' << end_effector_rot[0] << ',' << end_effector_rot[1] << ',' << end_effector_rot[2] << "])"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
-    end_effector_rot = rot;
     return 0;
 }
 
 Vec3 Robot::get_end_effector_rot()
 {
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].get_end_effector_pose()"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));
+    asio::streambuf res;
+    asio::read_until(scene->md->socket, res,'\n');
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    end_effector_rot = {json_res[3].get<float>(),json_res[4].get<float>(),json_res[5].get<float>()};
     return end_effector_rot;
 }
 
 void Robot::set_home()
 {
-    home_joint_poses = current_joint_poses;
+    home_joint_poses = get_joints();
 }
 
 int Robot::home()
@@ -845,7 +943,7 @@ string Camera3D::get_intrinsics()
     return string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()));
 }
 
-Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties)
+Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties),rtt_proxy_running(false)
 {
     auto json_properties = json::parse(properties);
     pixels_w = json_properties["pixels_w"].get<long long>();
@@ -856,8 +954,8 @@ Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,prope
 
 Camera3DReal::~Camera3DReal()
 {
-    rtt_proxy_running=false;
-    rtt_proxy.join();
+    if(rtt_proxy_running) rtt_proxy.join();
+    rtt_proxy_running = false; 
 }
 
 int Camera3DReal::rtt(TextureReal& t) {

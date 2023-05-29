@@ -1,197 +1,129 @@
-#include <locale.h>
+#ifndef CAMERA3D_PROPERTIES_HPP
+#define CAMERA3D_PROPERTIES_HPP
 
-#include <opencv2/opencv.hpp>
-#include <gtkmm.h>
-#include <gtkmm/eventcontrollerlegacy.h>
+#include "object_properties.hpp"
+#include <boost/date_time.hpp>
+#include <boost/process.hpp>
 
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <list>
-#include <string>
-using namespace std;
-
-#include <boost/json.hpp>
-#include <boost/filesystem.hpp>
-using namespace boost;
-
-#include "digitaltwin.hpp"
-using namespace digitaltwin;
-
-static const boost::filesystem::path dir_data = "./data";
-static const boost::filesystem::path dir_workpieces = "./data/workpieces";
-static const boost::filesystem::path dir_end_effectors = "./data/end_effectors";
-static const boost::filesystem::path dir_cameras = "./data/cameras";
-static const boost::filesystem::path dir_objects = "./data/objects";
-static const boost::filesystem::path dir_static_objects = "./data/static_objects";
-static const boost::filesystem::path dir_robots = "./data/robots";
-static const boost::filesystem::path dir_scenes = "./data/scenes";
-
-class Camera3DProperties : public Gtk::ListBox 
+struct  Camera3DProperties : public ObjectProperties
 {
-public:
+    Camera3D* camera;
+    Gtk::SpinButton *spin_fov,*spin_focal;
+    Gtk::Button *btn_rtt;
+    Gtk::Label *label_save_path;
+    Gtk::Picture *area_texture,*area_texture2;
+    sigc::connection rtt_signal_click,sig_fov,sig_focal;
+    
     Camera3DProperties(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& builder)
-        : Gtk::ListBox(cobject),builder(builder)
+        : ObjectProperties(cobject, builder)
     {
-        auto dropdown_base = builder->get_widget<Gtk::ComboBox>("base");
+        base_dir = "cameras";
+        spin_focal = builder->get_widget<Gtk::SpinButton>("focal");
 
-        Gtk::TreeModel::ColumnRecord columns;
-        columns.add(col_key);
-        columns.add(col_value);
-
-        base_model = Gtk::ListStore::create(columns);
-        dropdown_base->set_model(base_model);
-        dropdown_base->pack_start(col_key);
-
-        auto dropdown_end_effector = builder->get_widget<Gtk::ComboBox>("end_effector");
-
-        end_effector_model = Gtk::ListStore::create(columns);
-        dropdown_end_effector->set_model(end_effector_model);
-        dropdown_end_effector->pack_start(col_key);
+        btn_rtt = builder->get_widget<Gtk::Button>("capture");
+        label_save_path = builder->get_widget<Gtk::Label>("save");
+        area_texture = builder->get_widget<Gtk::Picture>("texture");
+        area_texture2 = builder->get_widget<Gtk::Picture>("texture_depth");
+        rtt_signal_click = btn_rtt->signal_clicked().connect(sigc::mem_fun(*this, &Camera3DProperties::on_capture_clicked));
     }
 
-    Gtk::TreeModelColumn<string> col_key,col_value;
-    Glib::RefPtr<Gtk::ListStore> base_model,end_effector_model;
-    sigc::connection base_signal_changed,end_effector_signal_changed,rtt_signal_click;
-
-    void parse(ActiveObject* active_obj)
+    virtual ~Camera3DProperties()
     {
-        auto entry_kind = builder->get_widget<Gtk::Label>("kind");
-        auto dropdown_base = builder->get_widget<Gtk::ComboBox>("base");
-        auto spin_x = builder->get_object<Gtk::SpinButton>("x");
-        auto spin_y = builder->get_object<Gtk::SpinButton>("y");
-        auto spin_z = builder->get_object<Gtk::SpinButton>("z");
-        auto spin_roll = builder->get_object<Gtk::SpinButton>("roll");
-        auto spin_pitch = builder->get_object<Gtk::SpinButton>("pitch");
-        auto spin_yaw = builder->get_object<Gtk::SpinButton>("yaw");
-        auto row_end_effector = builder->get_widget<Gtk::ListBoxRow>("row_end_effector");
-        auto row_width = builder->get_widget<Gtk::ListBoxRow>("row_width");
-        auto row_height = builder->get_widget<Gtk::ListBoxRow>("row_height");
-        auto row_rtt = builder->get_widget<Gtk::ListBoxRow>("row_rtt");
-        for(auto lbr : vector<Gtk::ListBoxRow*>{ row_end_effector,row_width,row_height,row_rtt }) lbr->set_visible(false);
-
-        spin_x->set_value(active_obj->pos[0]);
-        spin_y->set_value(active_obj->pos[1]);
-        spin_z->set_value(active_obj->pos[2]);
-        spin_roll->set_value(active_obj->rot[0]);
-        spin_pitch->set_value(active_obj->rot[1]);
-        spin_yaw->set_value(active_obj->rot[2]);
-        entry_kind->set_text(active_obj->kind);
         
-        base_signal_changed.disconnect();
-        base_model->clear();
-
-        auto dir_base = dir_objects;
-        if(parseRobot(active_obj)) {
-            row_end_effector->set_visible();
-            dir_base = dir_robots;
-        } else if (parseCamera(active_obj)) {
-            row_width->set_visible();
-            row_height->set_visible();
-            row_rtt->set_visible();
-            dir_base = dir_cameras;
-        } else if (parsePacker(active_obj)) {
-        } else if (parseStacker(active_obj)) {  
-        } 
-
-        for (auto e : boost::filesystem::recursive_directory_iterator(dir_base)) { 
-            auto filename = e.path().filename().string();
-            if (string::npos == filename.find(".urdf")) continue;
-            auto row = base_model->append();
-            row->set_value(col_key, e.path().filename().string());
-            row->set_value(col_value, e.path().string());
-            cout << e.path().string() << endl;
-            if(active_obj->base == e.path()) dropdown_base->set_active(row);
-        }
-
-        base_signal_changed = dropdown_base->signal_changed().connect([active_obj,dropdown_base,this]() {
-            auto model = dropdown_base->get_model();
-            auto row = dropdown_base->get_active();
-            active_obj->set_base(row->get_value(col_value));
-        });
     }
 
-    bool parseRobot(ActiveObject* active_obj)
+    Texture texture;
+    cv::Mat rgba,depth,gray,rgb;
+    virtual void parse(ActiveObject* active_obj)
     {
-        auto robot = dynamic_cast<Robot*>(active_obj);
-        if(robot == nullptr) return false;
-        auto dropdown_end_effector = builder->get_widget<Gtk::ComboBox>("end_effector");
-        end_effector_signal_changed.disconnect();
-        
-        end_effector_model->clear();
+        ObjectProperties::parse(active_obj);
+        camera = dynamic_cast<Camera3D*>(active_obj);
+        camera->draw_roi();
 
-        for (auto e : boost::filesystem::recursive_directory_iterator(dir_end_effectors)) { 
-            auto filename = e.path().filename().string();
-            if (string::npos == filename.find(".urdf")) continue;
-            auto row = end_effector_model->append();
-            row->set_value(col_key, e.path().filename().string());
-            row->set_value(col_value, e.path().string());
-            cout << e.path().string() << endl;
-            if(robot->end_effector == e.path()) dropdown_end_effector->set_active(row);
-        }
+        sig_focal.disconnect();
+        spin_focal->set_value(camera->focal);
+        sig_focal = spin_focal->signal_value_changed().connect(sigc::mem_fun(*this, &Camera3DProperties::on_focal_changed));
 
-        end_effector_signal_changed = dropdown_end_effector->signal_changed().connect([robot,dropdown_end_effector,this]() {
-            auto model = dropdown_end_effector->get_model();
-            auto row = dropdown_end_effector->get_active();
-            robot->set_end_effector(row->get_value(col_value));
-        });
-
-        return true;
-    }
-
-    bool parseCamera(ActiveObject* active_obj)
-    {
-        auto obj = dynamic_cast<Camera3D*>(active_obj);
-        if(obj == nullptr) return false;
-
-        auto spin_width = builder->get_object<Gtk::SpinButton>("fov");
-        auto spin_height = builder->get_object<Gtk::SpinButton>("forcal");
-        auto btn_rtt = builder->get_object<Gtk::Button>("rtt");
-        auto area_texture = builder->get_object<Gtk::Picture>("texture");
-        auto area_texture2 = builder->get_object<Gtk::Picture>("texture_depth");
-        spin_width->set_value(obj->fov);
-        spin_height->set_value(obj->focal);
-
-        auto rtt = [obj,area_texture,area_texture2]() {
-            auto aspect_ratio_viewport = 1. * obj->pixels_w / obj->pixels_h;
+        Glib::signal_timeout().connect_once([this]() {
+            auto aspect_ratio_viewport = 1. * camera->pixels_w / camera->pixels_h;
             int area_w = area_texture->get_width();
             int area_h = area_w / aspect_ratio_viewport;
-            Texture texture;
-            obj->rtt(texture);
+
+            camera->rtt(texture);
+
+            rgba = cv::Mat(cv::Size(texture.width,texture.height),CV_8UC4);
+            depth = cv::Mat(cv::Size(texture.width,texture.height),CV_32FC1);
+
+            memcpy(rgba.ptr<unsigned char>(), texture.rgba_pixels, texture.width * texture.height *4);
+            cv::cvtColor(rgba,rgba,cv::COLOR_RGBA2BGRA);
+
+            memcpy(depth.ptr<unsigned char>(), texture.depth_pixels, texture.width * texture.height *4);
+            
+            double min,max;
+            cv::minMaxIdx(depth, &min, &max);
+            cv::convertScaleAbs(depth, gray, 255 / max);
+            cv::cvtColor(gray,rgb,cv::COLOR_GRAY2RGB);
+
             auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
             area_texture->set_pixbuf(img);
-            // auto img2 = Gdk::Pixbuf::create_from_data(texture.depth_pixels,Gdk::Colorspace::RGB,false,8,texture.width,texture.height,texture.width*3);
-            // area_texture2->set_pixbuf(img2);
             area_texture->set_size_request(area_w,area_h);
-            // area_texture2->set_size_request(area_w,area_h);
-        };
+            
+            auto img2 = Gdk::Pixbuf::create_from_data(rgb.ptr<unsigned char>(),Gdk::Colorspace::RGB,false,8,texture.width,texture.height,texture.width*3);
+            area_texture2->set_pixbuf(img2);
+            area_texture2->set_size_request(area_w,area_h);
+        },500); 
+    }
 
-        if(!area_texture->get_paintable()) {
-            Glib::signal_timeout().connect_once([area_texture,area_texture2,obj]() {
-                auto aspect_ratio_viewport = 1. * obj->pixels_w / obj->pixels_h;
-                int area_w = area_texture->get_width();
-                int area_h = area_w / aspect_ratio_viewport;
-                auto img = Gdk::Pixbuf::create(Gdk::Colorspace::RGB, false, 8, obj->pixels_w,obj->pixels_h);
-                
-                area_texture->set_pixbuf(img);
-                area_texture2->set_pixbuf(img);
-                area_texture->set_size_request(area_w,area_h);
-                area_texture2->set_size_request(area_w,area_h);
-            },100);
-        }
+    void on_focal_changed() 
+    {
+        camera->set_focal(spin_focal->get_value());
+        camera->draw_roi();
+    }
+
+    void on_capture_clicked() 
+    {
+        camera->rtt(texture);
+
+        rgba = cv::Mat(cv::Size(texture.width,texture.height),CV_8UC4);
+        depth = cv::Mat(cv::Size(texture.width,texture.height),CV_32FC1);
+
+        memcpy(rgba.ptr<unsigned char>(), texture.rgba_pixels, texture.width * texture.height *4);
+        cv::cvtColor(rgba,rgba,cv::COLOR_RGBA2BGRA);
+
+        memcpy(depth.ptr<unsigned char>(), texture.depth_pixels, texture.width * texture.height *4);
         
-        rtt_signal_click.disconnect();
-        rtt_signal_click = btn_rtt->signal_clicked().connect(rtt);
-        return true;
-    }
+        double min,max;
+        cv::minMaxIdx(depth, &min, &max);
+        cv::convertScaleAbs(depth, gray, 255 / max);
+        cv::cvtColor(gray,rgb,cv::COLOR_GRAY2RGB);
 
-    bool parseStacker(ActiveObject* active_obj) {
-        return true;
-    }
+        auto env = this_process::environment();
+        auto name = camera->get_name();
+        boost::filesystem::path dir = env["HOME"].to_string();
+        auto pictures_dir = dir / "Pictures" / name;
+        boost::filesystem::create_directories(pictures_dir);
+        label_save_path->set_label("Images have been saved to '" + pictures_dir.string() + "'");
 
-    bool parsePacker(ActiveObject* active_obj) {
-        return true;
-    }
+        auto filename = boost::posix_time::to_iso_string(boost::posix_time::second_clock::local_time());
+        auto rgba_path = pictures_dir / (filename + ".png");
+        auto depth_path = pictures_dir / (filename + ".tiff");
 
-    Glib::RefPtr<Gtk::Builder> builder;
+        auto aspect_ratio_viewport = 1. * camera->pixels_w / camera->pixels_h;
+        int area_w = area_texture->get_width();
+        int area_h = area_w / aspect_ratio_viewport;
+
+        auto img = Gdk::Pixbuf::create_from_data(texture.rgba_pixels,Gdk::Colorspace::RGB,true,8,texture.width,texture.height,texture.width*4);
+        area_texture->set_pixbuf(img);
+        area_texture->set_size_request(area_w,area_h);
+        
+        auto img2 = Gdk::Pixbuf::create_from_data(rgb.ptr<unsigned char>(),Gdk::Colorspace::RGB,false,8,texture.width,texture.height,texture.width*3);
+        area_texture2->set_pixbuf(img2);
+        area_texture2->set_size_request(area_w,area_h);
+
+        Glib::signal_timeout().connect_seconds_once([this,rgba_path](){ cv::imwrite(rgba_path.string(),rgba); },1);
+        Glib::signal_timeout().connect_seconds_once([this,depth_path](){ cv::imwrite(depth_path.string(),depth); },2);
+        Glib::signal_timeout().connect_seconds_once([this](){ label_save_path->set_label(""); },3);
+    }
 };
+
+#endif

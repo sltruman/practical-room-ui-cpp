@@ -54,6 +54,9 @@ struct ObjectProperties : public Gtk::ListBox
     virtual void parse(ActiveObject* active_obj)
     {   
         this->active_obj = active_obj;
+        
+        auto entry_kind = builder->get_widget<Gtk::Label>("kind");
+        entry_kind->set_text(active_obj->get_kind());
 
         sig_x.disconnect();
         sig_y.disconnect();
@@ -62,9 +65,6 @@ struct ObjectProperties : public Gtk::ListBox
         sig_ry.disconnect();
         sig_rz.disconnect();
         
-        auto entry_kind = builder->get_widget<Gtk::Label>("kind");
-        entry_kind->set_text(active_obj->get_kind());
-
         auto pos = active_obj->get_pos();
         spin_x->set_value(pos[0]);
         spin_y->set_value(pos[1]);
