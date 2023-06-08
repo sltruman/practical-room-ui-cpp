@@ -1,5 +1,7 @@
 #include "digitaltwin.hpp"
 
+#include <condition_variable>
+#include <mutex>
 #include <memory>
 #include <fstream>
 #include <stdexcept>
@@ -252,7 +254,7 @@ void Scene::sync_profile()
     asio::read_until(md->socket, res,'\n');
     md->profile = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
     
-    if( md->profile.contains("user_data")) md->user_data =  md->profile["user_data"].get<string>().c_str();
+    if( md->profile.contains("user_data")) md->user_data = md->profile["user_data"].get<string>().c_str();
 }
 
 void Scene::sync_active_objs()
@@ -408,7 +410,7 @@ int Editor::add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale,string& nam
     return 0;
 }
 
-int Editor::add_box(Vec3 pos,Vec3 rot,Vec3 size,int thickness,string& name) 
+int Editor::add_box(Vec3 pos,Vec3 rot,Vec3 size,float thickness,string& name) 
 {
     stringstream req;
     req << "editor.add_box([" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "],[" << size[0]<<","<<size[1]<<","<<size[2]<< "],"<<thickness<<")" << endl;
@@ -440,7 +442,7 @@ int Editor::add_cube(Vec3 pos,Vec3 rot,Vec3 size,string& name)
     return 0;
 }
 
-int Editor::add_cylinder(Vec3 pos,Vec3 rot,int radius,int length,string& name)
+int Editor::add_cylinder(Vec3 pos,Vec3 rot,float radius,float length,string& name)
 {
     stringstream req;
     req << "editor.add_cylinder([" << pos[0]<<","<<pos[0]<<","<<pos[2]<< "],[" << rot[0]<<","<<rot[1]<<","<<rot[2]<< "]," <<radius<<","<<length<<")" << endl;
@@ -627,6 +629,14 @@ string ActiveObject::get_user_data()
     return user_data;
 }
 
+void ActiveObject::signal(string fun,string args) 
+{
+    stringstream req;
+    req << "scene.active_objs_by_name['"<<name<<"'].signal_" << fun << "("<<args")"<<endl;
+    cout << req.str();
+    asio::write(scene->md->socket,  asio::buffer(req.str()));    
+}
+
 Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 {
     auto json_properties = json::parse(properties);
@@ -652,7 +662,7 @@ int Robot::set_end_effector(string path)
 
 string Robot::get_end_effector() { return end_effector; }
 
-int Robot::digital_output(bool pickup) 
+int Robot::digital_output(bool pickup)
 {
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].end_effector_obj.do(" << (pickup ? "True" : "False")  << ")"<<endl;
@@ -664,7 +674,7 @@ int Robot::digital_output(bool pickup)
 bool Robot::is_picking()
 {
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].end_effector_obj.get_properties()"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].end_effector_obj.get_properties()" << endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
@@ -821,8 +831,8 @@ Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
 
 Camera3D::~Camera3D()
 {
-    if (rtt_proxy_running) {
-        rtt_proxy_running=false;
+    if(rtt_proxy_running) {
+        rtt_proxy_running = false; 
         rtt_proxy.join();
     }
 }
@@ -943,25 +953,45 @@ string Camera3D::get_intrinsics()
     return string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()));
 }
 
+struct Camera3DReal::Plugin {
+    std::mutex m;
+    std::condition_variable cv;
+};
+
 Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties),rtt_proxy_running(false)
 {
     auto json_properties = json::parse(properties);
     pixels_w = json_properties["pixels_w"].get<long long>();
     pixels_h = json_properties["pixels_h"].get<long long>();
-    rgb_pixels.resize(pixels_w*pixels_h*3);
-    depth_pixels.resize(pixels_w*pixels_h);
+    // rgb_pixels.resize(pixels_w*pixels_h*3);
+    // depth_pixels.resize(pixels_w*pixels_h);
+    md = new Plugin;
 }
 
 Camera3DReal::~Camera3DReal()
 {
-    if(rtt_proxy_running) rtt_proxy.join();
-    rtt_proxy_running = false; 
+    if(rtt_proxy_running) {
+        rtt_proxy_running = false; 
+        rtt_proxy.join();
+    }
+
+    delete md;
 }
 
 int Camera3DReal::rtt(TextureReal& t) {
+    if(!slot_rtt)
+        return 1;
+
+    std::unique_lock<std::mutex> lk(md->m);
+    
     stringstream req;
     req << "scene.active_objs_by_name['"<<name<<"'].rtt()" << endl;
     asio::write(scene->md->socket,asio::buffer(req.str()));
+      
+    md->cv.wait(lk);
+
+    if(rgb_pixels.empty())
+        return 2;
 
     t.width = pixels_w;
     t.height = pixels_h;
@@ -994,15 +1024,20 @@ void Camera3DReal::set_rtt_func(std::function<bool(vector<unsigned char>&,vector
                 this_thread::sleep_for(chrono::seconds(1));
                 continue;
             }
-            
+
             if(slot_rtt(rgb_pixels,depth_pixels,pixels_w,pixels_h)) {
                 asio::write(socket,asio::buffer(&pixels_w,4));
                 asio::write(socket,asio::buffer(&pixels_h,4));
                 asio::write(socket,asio::buffer(rgb_pixels));
-                asio::write(socket,asio::buffer(depth_pixels));  
+                asio::write(socket,asio::buffer(depth_pixels));
             } else {
+                rgb_pixels.resize(0);
+                depth_pixels.resize(0);
                 cout << "failed rtt" << endl;
             }
+
+            std::unique_lock<std::mutex> lk(md->m);
+            md->cv.notify_one();
         }
 
         acceptor.close();

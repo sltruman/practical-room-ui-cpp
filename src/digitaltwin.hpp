@@ -9,6 +9,7 @@
 #include <array>
 #include <functional>
 #include <thread>
+#include <memory>
 
 namespace digitaltwin
 {
@@ -51,7 +52,7 @@ public:
     int save();
     int rtt(Texture& t);
     int play(bool run);
-    int rotate(double x,double y);  
+    int rotate(double x,double y);
     int rotete_left();
     int rotete_right();
     int rotete_top();
@@ -69,7 +70,6 @@ public:
     void set_log_func(std::function<void(char,string)> slot);
     int set_user_data(string value);
     string get_user_data();
-
 
 private:
     void sync_profile();
@@ -94,9 +94,9 @@ public:
     int ray(double x,double y,RayInfo& info);
     int select(string name);
     int add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale,string& name);
-    int add_box(Vec3 pos,Vec3 rot,Vec3 size,int thickness,string& name);
+    int add_box(Vec3 pos,Vec3 rot,Vec3 size,float thickness,string& name);
     int add_cube(Vec3 pos,Vec3 rot,Vec3 size,string& name);
-    int add_cylinder(Vec3 pos,Vec3 rot,int radius,int length,string& name);
+    int add_cylinder(Vec3 pos,Vec3 rot,float radius,float length,string& name);
     int remove(string name);
     int set_relation(string parent,string child);
     list<Relation> get_relations();
@@ -128,6 +128,7 @@ struct ActiveObject
     string get_kind();
     int set_user_data(string value);
     string get_user_data();
+    void signal(string fun,string args);
 
     struct Plugin;
     Plugin* md;
@@ -215,6 +216,9 @@ struct Camera3DReal : public ActiveObject
 
     thread rtt_proxy;
     bool rtt_proxy_running;
+
+    struct Plugin;
+    Plugin* md;
 };
 
 struct Placer : public ActiveObject
