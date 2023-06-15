@@ -34,7 +34,7 @@
         </child>
         <child type="title">
           <object class="GtkLabel">
-            <property name="label"></property>
+            <property name="label">Simflow</property>
           </object>
         </child>
 
@@ -142,9 +142,27 @@
                       <property name="visible">False</property>
                       <property name="max-content-width">50</property>
                       <child>
-                          <object class="GtkViewport" id="content">
+                          <object class="GtkViewport" id="right_side_pannel_content">
                             <property name="scroll-to-focus">1</property>
                             <child>
+                            </child>
+                          </object>
+                      </child>
+                    </object>
+                </child>
+                <child type="overlay">
+                    <object class="GtkScrolledWindow" id="bottom_side_pannel">
+                      <property name="valign">end</property>
+                      <property name="opacity">0.9</property>
+                      <property name="has-frame">1</property>
+                      <property name="vscrollbar-policy">never</property>
+                      <property name="visible">True</property>
+                      <property name="max-content-width">50</property>
+                      <child>
+                          <object class="GtkViewport" id="bottom_side_pannel_content">
+                            <property name="scroll-to-focus">1</property>
+                            <child>
+                              
                             </child>
                           </object>
                       </child>

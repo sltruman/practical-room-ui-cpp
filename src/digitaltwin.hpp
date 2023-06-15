@@ -44,7 +44,7 @@ friend class Camera3DReal;
 friend class Workflow;
 
 public:
-    Scene(int width,int height,string backend_path="./digitaltwin",string data_dir_path="./data");
+    Scene(int width,int height,string data_dir_path="./data");
     ~Scene();
     string get_data_dir_path();
     string get_backend_path();

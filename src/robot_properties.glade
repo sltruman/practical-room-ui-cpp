@@ -725,10 +725,39 @@
             </object>
         </child>
 
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <child>
+                    <object class="GtkLabel">
+                        <property name="label">Signals</property>
+                        <attributes>
+                            <attribute name="weight" value="PANGO_WEIGHT_BOLD" />
+                        </attributes>
+                    </object>
+                </child>
+            </object>
+        </child>
 
-
-
-
+        <child>
+            <object class="GtkListBoxRow">
+                <property name="activatable">0</property>
+                <property name="visible">True</property>
+                
+                <child>
+                    <object class="GtkExpander">
+                        <property name="label">Move</property>
+                        <child>
+                            <object class="GtkBox">
+                                <property name="homogeneous">1</property>
+                                <child>
+                                </child>
+                            </object>
+                        </child>
+                    </object>
+                </child>
+            </object>
+        </child>
 
     </object>
 </interface>

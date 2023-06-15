@@ -35,7 +35,7 @@ struct TemplateView : public Gtk::ScrolledWindow
     list<std::shared_ptr<Gtk::Button>> templates;
 
     TemplateView(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
-        : Gtk::ScrolledWindow(cobject)
+        : Gtk::ScrolledWindow(cobject)  
         , template_list(builder->get_widget<Gtk::FlowBox>("template_list"))
     {
         refresh();
@@ -82,7 +82,7 @@ struct RightSidePannel : public Gtk::ScrolledWindow
 
     RightSidePannel(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
         : Gtk::ScrolledWindow(cobject)
-        , content(builder->get_widget<Gtk::Viewport>("content"))
+        , content(builder->get_widget<Gtk::Viewport>("right_side_pannel_content"))
     {
         contents["ActiveObject"] = Gtk::Builder::get_widget_derived<ObjectProperties>(Gtk::Builder::create_from_file("./object_properties.glade"), "object_properties");
         contents["Robot"] = Gtk::Builder::get_widget_derived<RobotProperties>(Gtk::Builder::create_from_file("./robot_properties.glade"), "robot_properties");
@@ -101,6 +101,25 @@ struct RightSidePannel : public Gtk::ScrolledWindow
 };
 
 
+struct BottomSidePannel : public Gtk::ScrolledWindow
+{
+    Gtk::Viewport* content;
+
+    BottomSidePannel(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
+        : Gtk::ScrolledWindow(cobject)
+        , content(builder->get_widget<Gtk::Viewport>("bottom_side_pannel_content"))
+    {
+        // content = Gtk::Builder::get_widget_derived<ActiveObjects>(Gtk::Builder::create_from_file("./active_objects.glade"), "active_objects");
+    }
+
+    void parse(ActiveObject* obj) 
+    {
+
+    }
+};
+
+
+
 struct SceneView : public Gtk::Overlay 
 {
     SceneView(BaseObjectType* cobject, const std::shared_ptr<Gtk::Builder>& builder)
@@ -108,19 +127,19 @@ struct SceneView : public Gtk::Overlay
     {
         area = builder->get_widget<Gtk::DrawingArea>("simulation");
         right_side_pannel = Gtk::Builder::get_widget_derived<RightSidePannel>(builder,"right_side_pannel");
-        add_overlay(*right_side_pannel);
+        bottom_side_pannel = Gtk::Builder::get_widget_derived<BottomSidePannel>(builder,"bottom_side_pannel");
     }
 
     ~SceneView()
     {
-
+        
     }
 
     void open(string scene_path)
     {
         close();
 
-        scene = make_shared<Scene>(1024,768,"./digitaltwin","./digitaltwin_data");
+        scene = make_shared<Scene>(800,640,"./digitaltwin_data");
         editor = make_shared<Editor>(scene.get());
         workflow = make_shared<Workflow>(scene.get());
         scene->load(scene_path);
@@ -184,6 +203,7 @@ struct SceneView : public Gtk::Overlay
     std::shared_ptr<const Gdk::Event> prev_ev;
     bool area_drag_event(const std::shared_ptr<const Gdk::Event>& ev)
     {
+        if(!img) return false;
         auto type = ev->get_event_type();
         auto button = ev->get_button();
 
@@ -199,10 +219,11 @@ struct SceneView : public Gtk::Overlay
                 if(handled == 1) {
                     // 计算出鼠标位置相对于图片位置的坐标
                     double x,y; ev->get_position(x,y);
-                    x -= 14,y -= 46; //补偿x,y值，这是gtk框架bug
+                    x -= 14,y -= 45; //补偿x,y值，这是gtk框架bug
                     if(right_side_pannel->get_allocation().contains_point(x,y)) break;
                     auto x_norm = (x / area_zoom_factor - img_x) / img->get_width();
                     auto y_norm = (y / area_zoom_factor - img_y) / img->get_height();
+                    cout << "ray x:" << x_norm << " y:" << y_norm << endl;
 
                     RayInfo hit;
                     editor->ray(x_norm,y_norm,hit);
@@ -221,7 +242,7 @@ struct SceneView : public Gtk::Overlay
                 double x,y; ev->get_position(x,y);
                 x -= 14,y -= 46; //补偿x,y值，这是gtk框架bug
                 x =  x / area_zoom_factor - img_x, y = y / area_zoom_factor - img_y;
-                
+
                 // 计算出上一次鼠标位置相对于图片位置的坐标
                 double x_prev,y_prev; prev_ev->get_position(x_prev,y_prev);
                 x_prev -= 14,y_prev -= 46; //补偿x,y值，这是gtk框架bug
@@ -252,6 +273,7 @@ struct SceneView : public Gtk::Overlay
     }
 
     RightSidePannel* right_side_pannel;
+    BottomSidePannel* bottom_side_pannel;
     Gtk::DrawingArea* area;
     double area_zoom_factor = 1.0,img_x,img_y;
     std::shared_ptr<Gdk::Pixbuf> img;
@@ -335,12 +357,7 @@ public:
 
     void on_button_workflow_clicked()
     {
-        string name;
-        scene_view->editor->add("Robot","data/robots/franka_panda/franka_panda.urdf",{2,0,0},{0,0,0},{1,1,1},name);
-        auto objs = scene_view->scene->get_active_objs();
-        Robot* obj = (Robot*)objs[name];
-        obj->set_end_effector("data/end_effectors/gripper2/gripper2.urdf");
-        obj->home();
+
     }
 
     void on_button_edit_clicked()
@@ -351,7 +368,6 @@ public:
             cout << "view" << endl;
         }
     }
-
 
     std::shared_ptr<Gtk::Builder> builder;
     TemplateView* template_view;

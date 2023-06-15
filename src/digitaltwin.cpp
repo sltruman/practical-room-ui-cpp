@@ -40,14 +40,15 @@ struct Scene::Plugin
     string user_data;
 };
 
-Scene::Scene(int width,int height,string backend_path,string data_dir_path)
+Scene::Scene(int width,int height,string data_dir_path)
 {
     std::locale::global(std::locale(std::locale::classic(),"",std::locale::ctype));
     md = new Plugin;
     md->rgba_pixels.resize(width * height * 4);
     md->height = height,md->width = width;
-    md->backend_path = backend_path;
     md->data_dir_path = data_dir_path;
+    md->backend_path = boost::filesystem::path(data_dir_path) / "engines/bullet";
+    
 }
 
 Scene::~Scene()
@@ -632,7 +633,7 @@ string ActiveObject::get_user_data()
 void ActiveObject::signal(string fun,string args) 
 {
     stringstream req;
-    req << "scene.active_objs_by_name['"<<name<<"'].signal_" << fun << "("<<args")"<<endl;
+    req << "scene.active_objs_by_name['"<<name<<"'].signal_" << fun << "("<<args<<")"<<endl;
     cout << req.str();
     asio::write(scene->md->socket,  asio::buffer(req.str()));    
 }
