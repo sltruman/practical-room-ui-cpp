@@ -8,7 +8,7 @@
 
 struct PlacerProperties : public ObjectProperties
 {
-    boost::filesystem::path workpieces_dir,workpiece_textures_dir;
+    std::filesystem::path workpieces_dir,workpiece_textures_dir;
     sigc::connection sig_workpiece,sig_workpiece_texture;
     Gtk::DropDown *dropdown_workpiece,*dropdown_workpiece_texture;
     
@@ -43,13 +43,13 @@ struct PlacerProperties : public ObjectProperties
         dropdown_workpiece->set_selected(-1);
         auto scene = active_obj->get_own_scene();
         
-        boost::filesystem::path data_dir = scene->get_data_dir_path();
-        for (auto fileitem : boost::filesystem::directory_iterator(data_dir / workpieces_dir)) { 
+        std::filesystem::path data_dir = scene->get_data_dir_path();
+        for (auto fileitem : std::filesystem::directory_iterator(data_dir / workpieces_dir)) { 
             auto dirpath = fileitem.path();
             auto dirname = dirpath.filename().string();
             auto filename = dirname + ".urdf";
             auto filepath = dirpath / filename;
-            if(!boost::filesystem::exists(filepath)) continue;
+            if(!std::filesystem::exists(filepath)) continue;
             model->append(dirpath.filename().string());
             auto workpieces_path = (workpieces_dir / dirname / filename).string();
             dropdown_workpiece->set_data(dirname.c_str(),new string(workpieces_path),[](gpointer data) {delete reinterpret_cast<string*>(data);});

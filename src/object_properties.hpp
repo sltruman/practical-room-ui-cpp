@@ -6,7 +6,6 @@ using namespace digitaltwin;
 
 #include <locale.h>
 
-#include <opencv2/opencv.hpp>
 #include <gtkmm.h>
 #include <gtkmm/eventcontrollerlegacy.h>
 
@@ -16,16 +15,16 @@ using namespace digitaltwin;
 #include <vector>
 #include <list>
 #include <string>
+#include <filesystem>
 using namespace std;
 
 #include <boost/json.hpp>
-#include <boost/filesystem.hpp>
 using namespace boost;
 
 
 struct ObjectProperties : public Gtk::ListBox 
 {
-    boost::filesystem::path base_dir;
+    std::filesystem::path base_dir;
     Glib::RefPtr<Gtk::Builder> builder;
     Gtk::DropDown* dropdown_base;
     Gtk::SpinButton *spin_x,*spin_y,*spin_z,*spin_rx,*spin_ry,*spin_rz;
@@ -89,13 +88,13 @@ struct ObjectProperties : public Gtk::ListBox
         dropdown_base->set_selected(-1);
         auto scene = active_obj->get_own_scene();
         
-        boost::filesystem::path data_dir = scene->get_data_dir_path();
-        for (auto fileitem : boost::filesystem::directory_iterator(data_dir / base_dir)) { 
+        std::filesystem::path data_dir = scene->get_data_dir_path();
+        for (auto fileitem : std::filesystem::directory_iterator(data_dir / base_dir)) { 
             auto dirpath = fileitem.path();
             auto dirname = dirpath.filename().string();
             auto filename = dirname + ".urdf";
             auto filepath = dirpath / filename;
-            if(!boost::filesystem::exists(filepath)) continue;
+            if(!std::filesystem::exists(filepath)) continue;
             model->append(dirpath.filename().string());
             auto base_path = (base_dir / dirname / filename).string();
             dropdown_base->set_data(dirname.c_str(),new string(base_path),[](gpointer data) {delete reinterpret_cast<string*>(data);});

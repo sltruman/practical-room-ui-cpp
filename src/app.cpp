@@ -16,10 +16,10 @@
 #include <list>
 #include <string>
 #include <memory>
+#include <filesystem>
 using namespace std;
 
 #include <boost/json.hpp>
-#include <boost/filesystem.hpp>
 using namespace boost;
 
 #include "digitaltwin.hpp"
@@ -28,7 +28,7 @@ using namespace digitaltwin;
 
 struct TemplateView : public Gtk::ScrolledWindow
 {
-    boost::filesystem::path scene_dir = "./digitaltwin_data/scenes";
+    std::filesystem::path scene_dir = "./digitaltwin_data/scenes";
     sigc::signal<void(string)> signal_selected;
 
     Gtk::FlowBox* template_list;
@@ -46,7 +46,7 @@ struct TemplateView : public Gtk::ScrolledWindow
         for(auto t : templates) template_list->remove(*t);
         templates.clear();
 
-        for (auto fileitem : boost::filesystem::recursive_directory_iterator(scene_dir)) { 
+        for (auto fileitem : std::filesystem::recursive_directory_iterator(scene_dir)) { 
             auto filepath = fileitem.path();
             auto ext = filepath.extension();
             if (".json" != ext) continue;
@@ -56,7 +56,7 @@ struct TemplateView : public Gtk::ScrolledWindow
             auto t = templates.emplace_back(make_shared<Gtk::Button>());
             Gtk::Box box(Gtk::Orientation::VERTICAL);
             Gtk::Image img; img.set_expand();
-            if (boost::filesystem::exists(img_path)) {
+            if (std::filesystem::exists(img_path)) {
                 img.set_pixel_size(150);
                 img.property_file().set_value(img_path.string());
             } else { 
@@ -383,9 +383,9 @@ int main(int argc, char* argv[])
 {
     auto app = Gtk::Application::create("xyz.diracloud.DigitalTwin");
     
-    setlocale(LC_ALL,"zh");
-    bindtextdomain("digitaltwin","po");
-    textdomain("digitaltwin");
+    // setlocale(LC_ALL,"zh");
+    // bindtextdomain("digitaltwin","po");
+    // textdomain("digitaltwin");
 
     app->signal_activate().connect([app]() {
         // auto builder = Gtk::Builder::create_from_resource("/app.glade");

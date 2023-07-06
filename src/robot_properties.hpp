@@ -8,7 +8,7 @@
 
 struct RobotProperties : public ObjectProperties
 {
-    boost::filesystem::path end_effector_dir;
+    std::filesystem::path end_effector_dir;
     sigc::connection sig_end_effector,sig_digital_output,sig_joints[7],sig_ee_x,sig_ee_y,sig_ee_z,sig_ee_rx,sig_ee_ry,sig_ee_rz;
     Gtk::SpinButton *spin_ee_x,*spin_ee_y,*spin_ee_z,*spin_ee_rx,*spin_ee_ry,*spin_ee_rz;
     Gtk::Switch *sw_digital_output;
@@ -59,13 +59,13 @@ struct RobotProperties : public ObjectProperties
         dropdown_end_effector->set_selected(-1);
         auto scene = active_obj->get_own_scene();
         
-        boost::filesystem::path data_dir = scene->get_data_dir_path();
-        for (auto fileitem : boost::filesystem::directory_iterator(data_dir / end_effector_dir)) { 
+        std::filesystem::path data_dir = scene->get_data_dir_path();
+        for (auto fileitem : std::filesystem::directory_iterator(data_dir / end_effector_dir)) { 
             auto dirpath = fileitem.path();
             auto dirname = dirpath.filename().string();
             auto filename = dirname + ".urdf";
             auto filepath = dirpath / filename;
-            if(!boost::filesystem::exists(filepath)) continue;
+            if(!std::filesystem::exists(filepath)) continue;
             model->append(dirpath.filename().string());
             auto end_effector_path = (end_effector_dir / dirname / filename).string();
             dropdown_end_effector->set_data(dirname.c_str(),new string(end_effector_path),[](gpointer data) {delete reinterpret_cast<string*>(data);});

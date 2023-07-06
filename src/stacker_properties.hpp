@@ -8,7 +8,7 @@
 
 struct StackerProperties : public ObjectProperties
 {
-    boost::filesystem::path workpieces_dir,workpiece_textures_dir;
+    std::filesystem::path workpieces_dir,workpiece_textures_dir;
     sigc::connection sig_workpiece,sig_workpiece_texture;
     Gtk::DropDown *dropdown_workpiece,*dropdown_workpiece_texture;
     

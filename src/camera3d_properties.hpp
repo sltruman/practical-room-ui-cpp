@@ -4,6 +4,7 @@
 #include "object_properties.hpp"
 #include <boost/date_time.hpp>
 #include <boost/process.hpp>
+#include <opencv2/opencv.hpp>
 
 struct  Camera3DProperties : public ObjectProperties
 {
@@ -33,6 +34,7 @@ struct  Camera3DProperties : public ObjectProperties
     }
 
     Texture texture;
+    
     cv::Mat rgba,depth,gray,rgb;
     virtual void parse(ActiveObject* active_obj)
     {
@@ -99,9 +101,9 @@ struct  Camera3DProperties : public ObjectProperties
 
         auto env = this_process::environment();
         auto name = camera->get_name();
-        boost::filesystem::path dir = env["HOME"].to_string();
+        std::filesystem::path dir = env["HOME"].to_string();
         auto pictures_dir = dir / "Pictures" / name;
-        boost::filesystem::create_directories(pictures_dir);
+        std::filesystem::create_directories(pictures_dir);
         label_save_path->set_label("Images have been saved to '" + pictures_dir.string() + "'");
 
         auto filename = boost::posix_time::to_iso_string(boost::posix_time::second_clock::local_time());

@@ -16,16 +16,16 @@ using namespace digitaltwin;
 #include <vector>
 #include <list>
 #include <string>
+#include <filesystem>
 using namespace std;
 
 #include <boost/json.hpp>
-#include <boost/filesystem.hpp>
 using namespace boost;
 
 
 struct ActiveObjects : public Gtk::ListBox 
 {
-    boost::filesystem::path base_dir;
+    std::filesystem::path base_dir;
     Glib::RefPtr<Gtk::Builder> builder;
     Gtk::DropDown* dropdown_base;
     Gtk::SpinButton *spin_x,*spin_y,*spin_z,*spin_rx,*spin_ry,*spin_rz;

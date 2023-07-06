@@ -5,13 +5,13 @@
 #include <memory>
 #include <fstream>
 #include <stdexcept>
+#include <filesystem>
 using namespace std;
 
-#include "json.h"
+#include <boost/json/src.hpp>
 #include <boost/asio.hpp>
 #include <boost/process.hpp>
 using namespace boost;
-using json = nlohmann::json;
 
 namespace digitaltwin {
 
@@ -22,7 +22,7 @@ struct Scene::Plugin
 
     asio::io_context io_context;
     asio::local::stream_protocol::socket socket;
-    boost::filesystem::path tmp_dir_path,backend_path,data_dir_path;
+    std::filesystem::path tmp_dir_path,backend_path,data_dir_path;
     
     int width,height;
     vector<unsigned char> rgba_pixels;
@@ -34,7 +34,7 @@ struct Scene::Plugin
     thread logging,rendering;
 
     string scene_path;
-    json profile;
+    json::object profile;
     map<string,ActiveObject*> active_objs_by_name;
 
     string user_data;
@@ -47,8 +47,7 @@ Scene::Scene(int width,int height,string data_dir_path)
     md->rgba_pixels.resize(width * height * 4);
     md->height = height,md->width = width;
     md->data_dir_path = data_dir_path;
-    md->backend_path = boost::filesystem::path(data_dir_path) / "engines/bullet";
-    
+    md->backend_path = std::filesystem::path(data_dir_path) / "engines/bullet";
 }
 
 Scene::~Scene()
@@ -87,7 +86,7 @@ int Scene::load(string scene_path) {
             md->backend_process->wait();
         }
 
-        auto digitaltwin_dir = boost::filesystem::temp_directory_path().append("digitaltwin");
+        auto digitaltwin_dir = std::filesystem::temp_directory_path().append("digitaltwin");
         md->tmp_dir_path = digitaltwin_dir / to_string(this_process::get_id());
         
         stringstream ss;
@@ -101,7 +100,8 @@ int Scene::load(string scene_path) {
         cout << "succeded" << endl
              << "command:" << ss.str() << endl;
 
-        auto socket_name = boost::filesystem::basename(scene_path) + ".json.sock";
+        
+        auto socket_name = std::filesystem::path(scene_path).stem().string() + ".json.sock";
         auto socket_path = md->tmp_dir_path / socket_name;
         
         auto backend_out = process::std_out > md->backend_out;
@@ -124,7 +124,7 @@ int Scene::load(string scene_path) {
             cout << "Connecting to digital-twin...";
            
             system::error_code ec;
-            if (md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.c_str()),ec)) {
+            if (md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.string()),ec)) {
                 cerr << "failed" << endl;
                 cerr << ec.message() << endl;
             } else break;
@@ -253,9 +253,9 @@ void Scene::sync_profile()
     asio::write(md->socket,asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(md->socket, res,'\n');
-    md->profile = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    md->profile = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
     
-    if( md->profile.contains("user_data")) md->user_data = md->profile["user_data"].get<string>().c_str();
+    if( md->profile.contains("user_data")) md->user_data = md->profile["user_data"].as_string();
 }
 
 void Scene::sync_active_objs()
@@ -267,19 +267,20 @@ void Scene::sync_active_objs()
     
     asio::streambuf res;
     asio::read_until(md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    cout << json_res.dump() << endl;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
+    
+    cout << json::serialize(json_res) << endl;
 
-    for (auto i : json_res.items()) {
+    for (auto i : json_res) {
         auto name = i.key();
-        auto properties = i.value();
-        auto description = properties.dump();
+        auto properties = i.value().as_object();
+        auto description = json::serialize(properties);
         
         ActiveObject* obj = nullptr;
         auto it = md->active_objs_by_name.find(name);
         if(it != md->active_objs_by_name.end()) continue;
 
-        auto kind = properties["kind"].get<string>();
+        auto kind = properties["kind"].as_string();
         if(kind == "Robot") {
             obj = new Robot(this, description);
         } else if(kind == "Camera3D") {
@@ -314,7 +315,7 @@ int Scene::set_ground_z(float z) {
 }
 
 float Scene::get_ground_z() {
-    return md->profile["ground_z"].get<float>();
+    return md->profile["ground_z"].as_double();
 }
 
 int Scene::set_ground_texture(string image_path) 
@@ -329,7 +330,7 @@ int Scene::set_ground_texture(string image_path)
 
 string Scene::get_ground_texture() 
 {
-    return md->profile["ground_texture"].get<string>();
+    return md->profile["ground_texture"].as_string().c_str();
 }
 
 void Scene::set_log_func(std::function<void(char,string)> slot)
@@ -377,11 +378,11 @@ int Editor::ray(double x,double y,RayInfo& info)
 
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    cout << json_res.dump() << endl;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
+    cout << json::serialize(json_res) << endl;
     
-    auto pos = json_res["pos"];
-    info = RayInfo {json_res["name"].get<string>(),{pos[0].get<double>(),pos[1].get<double>(),pos[2].get<double>()}};
+    auto pos = json_res["pos"].as_array();
+    info = RayInfo {json_res["name"].as_string().c_str(),{pos[0].as_double(),pos[1].as_double(),pos[2].as_double()}};
 
     return 0;
 }
@@ -403,10 +404,10 @@ int Editor::add(string kind,string base,Vec3 pos,Vec3 rot,Vec3 scale,string& nam
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    cout << json_res.dump() << endl;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
+    cout << json::serialize(json_res) << endl;
     if(json_res.empty()) return 1;
-    name = json_res["name"].get<string>();
+    name = json_res["name"].as_string();
     scene->sync_active_objs();
     return 0;
 }
@@ -419,10 +420,10 @@ int Editor::add_box(Vec3 pos,Vec3 rot,Vec3 size,float thickness,string& name)
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    cout << json_res.dump() << endl;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
+    cout << json::serialize(json_res) << endl;
     if(json_res.empty()) return 1;
-    name = json_res["name"].get<string>();
+    name = json_res["name"].as_string();
     scene->sync_active_objs();
     return 0;
 }
@@ -435,10 +436,10 @@ int Editor::add_cube(Vec3 pos,Vec3 rot,Vec3 size,string& name)
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    cout << json_res.dump() << endl;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
+    cout << json::serialize(json_res) << endl;
     if(json_res.empty()) return 1;
-    name = json_res["name"].get<string>();
+    name = json_res["name"].as_string();
     scene->sync_active_objs();
     return 0;
 }
@@ -451,10 +452,10 @@ int Editor::add_cylinder(Vec3 pos,Vec3 rot,float radius,float length,string& nam
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    cout << json_res.dump() << endl;
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
+    cout << json::serialize(json_res) << endl;
     if(json_res.empty()) return 1;
-    name = json_res["name"].get<string>();
+    name = json_res["name"].as_string();
     scene->sync_active_objs();
     return 0;
 }
@@ -492,24 +493,24 @@ int Scene::save()
 
 struct ActiveObject::Plugin 
 {
-    json profile;
+    json::object profile;
 };
 
 ActiveObject::ActiveObject(Scene* sp, string properties) : scene(sp)
 {
     md = new Plugin;
 
-    auto json_properties = json::parse(properties);
+    auto json_properties = json::parse(properties).as_object();
     md->profile = json_properties;
 
-    kind = json_properties["kind"].get<string>().c_str();
-    name = json_properties["name"].get<string>().c_str();
-    base = json_properties["base"].get<string>().c_str();
-    pos = json_properties["pos"].get<Vec3>();
-    rot = json_properties["rot"].get<Vec3>();
-    scale = json_properties["scale"].get<Vec3>();
+    kind = json_properties["kind"].as_string().c_str();
+    name = json_properties["name"].as_string().c_str();
+    base = json_properties["base"].as_string().c_str();
+    pos = json::value_to<Vec3>(json_properties["pos"]);
+    rot = json::value_to<Vec3>(json_properties["rot"]);
+    scale = json::value_to<Vec3>(json_properties["scale"]);
 
-    if(json_properties.contains("user_data")) user_data = json_properties["user_data"].get<string>().c_str();
+    if(json_properties.contains("user_data")) user_data = json_properties["user_data"].as_string();
 }
 
 ActiveObject::~ActiveObject() {
@@ -640,14 +641,14 @@ void ActiveObject::signal(string fun,string args)
 
 Robot::Robot(Scene* sp, string properties) : ActiveObject(sp,properties)
 {
-    auto json_properties = json::parse(properties);
-    end_effector = json_properties["end_effector"].get<string>();
-    speed = json_properties["speed"].get<float>();
-    json_properties["speed"].get<float>();
-    current_joint_poses = json_properties["current_joint_poses"].get<vector<float>>();
-    home_joint_poses = json_properties["reset_joint_poses"].get<vector<float>>();
-    end_effector_pos = json_properties["end_effector_pos"].get<Vec3>();
-    end_effector_rot = json_properties["end_effector_rot"].get<Vec3>();
+    auto json_properties = json::parse(properties).as_object();
+    end_effector = json_properties["end_effector"].as_string();
+    speed = json_properties["speed"].as_double();
+    json_properties["speed"].as_double();
+    current_joint_poses = json::value_to<vector<float>>(json_properties["current_joint_poses"]);
+    home_joint_poses = json::value_to<vector<float>>(json_properties["reset_joint_poses"]);
+    end_effector_pos = json::value_to<Vec3>(json_properties["end_effector_pos"]);
+    end_effector_rot = json::value_to<Vec3>(json_properties["end_effector_rot"]);
 }
 
 int Robot::set_end_effector(string path)
@@ -680,10 +681,10 @@ bool Robot::is_picking()
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    auto ee_kind = json_res["kind"].get<string>();
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_object();
+    auto ee_kind = json_res["kind"].as_string();
     if(ee_kind == "EndEffector") return false;
-    return json_res["picking"].get<bool>();
+    return json_res["picking"].as_bool();
 }
 
 vector<float> Robot::get_joints()
@@ -695,7 +696,7 @@ vector<float> Robot::get_joints()
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
     auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    current_joint_poses = json_res.get<vector<float>>();
+    current_joint_poses = json::value_to<vector<float>>(json_res);
     return current_joint_poses;
 }
 
@@ -754,9 +755,9 @@ Vec3 Robot::get_end_effector_pos()
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_array();
     
-    end_effector_pos = {json_res[0].get<float>(),json_res[1].get<float>(),json_res[2].get<float>()};
+    end_effector_pos = {json_res[0].as_double(),json_res[1].as_double(),json_res[2].as_double()};
     return end_effector_pos;
 }
 
@@ -778,8 +779,8 @@ Vec3 Robot::get_end_effector_rot()
     asio::write(scene->md->socket,  asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    end_effector_rot = {json_res[3].get<float>(),json_res[4].get<float>(),json_res[5].get<float>()};
+    auto json_res = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_array();
+    end_effector_rot = {json_res[3].as_double(),json_res[4].as_double(),json_res[5].as_double()};
     return end_effector_rot;
 }
 
@@ -822,12 +823,12 @@ int Robot::track(bool enable)
 Camera3D::Camera3D(Scene* sp,string properties)  : ActiveObject(sp,properties)
     , rtt_proxy_running(false)
 {
-    auto json_properties = json::parse(properties);
-    pixels_w = json_properties["pixels_w"].get<long long>();
-    pixels_h = json_properties["pixels_h"].get<long long>();
+    auto json_properties = json::parse(properties).as_object();
+    pixels_w = json_properties["pixels_w"].as_int64();
+    pixels_h = json_properties["pixels_h"].as_int64();
     rgba_pixels.resize(pixels_w*pixels_h*4);
     depth_pixels.resize(pixels_w*pixels_h);
-    focal = json_properties["focal"].get<float>();
+    focal = json_properties["focal"].as_double();
 }
 
 Camera3D::~Camera3D()
@@ -938,10 +939,10 @@ void Camera3D::get_roi(Vec3& pos,Vec3& rot,Vec3& size)
     asio::write(scene->md->socket,asio::buffer(req.str()));
     asio::streambuf res;
     asio::read_until(scene->md->socket, res,'\n');
-    auto roi = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data())));
-    roi_pos = {roi[0].get<float>(),roi[1].get<float>(),roi[2].get<float>()};
-    roi_rot = {roi[3].get<float>(),roi[4].get<float>(),roi[5].get<float>()};
-    roi_size = {roi[6].get<float>(),roi[7].get<float>(),roi[8].get<float>()};
+    auto roi = json::parse(string(asio::buffers_begin(res.data()),asio::buffers_end(res.data()))).as_array();
+    roi_pos = {roi[0].as_double(),roi[1].as_double(),roi[2].as_double()};
+    roi_rot = {roi[3].as_double(),roi[4].as_double(),roi[5].as_double()};
+    roi_size = {roi[6].as_double(),roi[7].as_double(),roi[8].as_double()};
 }
 
 string Camera3D::get_intrinsics()
@@ -961,9 +962,9 @@ struct Camera3DReal::Plugin {
 
 Camera3DReal::Camera3DReal(Scene* sp,string properties)  : ActiveObject(sp,properties),rtt_proxy_running(false)
 {
-    auto json_properties = json::parse(properties);
-    pixels_w = json_properties["pixels_w"].get<long long>();
-    pixels_h = json_properties["pixels_h"].get<long long>();
+    auto json_properties = json::parse(properties).as_object();
+    pixels_w = json_properties["pixels_w"].as_int64();
+    pixels_h = json_properties["pixels_h"].as_int64();
     // rgb_pixels.resize(pixels_w*pixels_h*3);
     // depth_pixels.resize(pixels_w*pixels_h);
     md = new Plugin;
@@ -1063,12 +1064,12 @@ int Camera3DReal::clear()
 
 Placer::Placer(Scene* sp,string properties) : ActiveObject(sp,properties)
 {
-    auto json_properties = json::parse(properties);
-    center = json_properties["center"].get<Vec3>();
-    interval = json_properties["interval"].get<int>();
-    amount = json_properties["amount"].get<int>();
-    workpiece = json_properties["workpiece"].get<string>();
-    workpiece_texture = json_properties["workpiece_texture"].get<string>();
+    auto json_properties = json::parse(properties).as_object();
+    center = json::value_to<Vec3>(json_properties["center"]);
+    interval = json_properties["interval"].as_int64();
+    amount = json_properties["amount"].as_int64();
+    workpiece = json_properties["workpiece"].as_string();
+    workpiece_texture = json_properties["workpiece_texture"].as_string();
 }
 
 string Placer::get_workpiece()
@@ -1144,8 +1145,8 @@ return 0;
 }
 
 Stacker::Stacker(Scene* sp,string properties) : ActiveObject(sp,properties) {
-    auto json_properties = json::parse(properties);
-    auto pos = json_properties["center"];
+    auto json_properties = json::parse(properties).as_object();
+    auto pos = json::value_to<Vec3>(json_properties["center"]);
     copy(pos.begin(),pos.end(),center.begin());
 }
 
