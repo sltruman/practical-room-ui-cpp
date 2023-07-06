@@ -124,7 +124,9 @@ int Scene::load(string scene_path) {
             cout << "Connecting to digital-twin...";
            
             system::error_code ec;
-            if (md->socket.connect(asio::local::stream_protocol::endpoint(socket_path.string()),ec)) {
+            auto socket_path_str = socket_path.string().c_str();
+
+            if (md->socket.connect(asio::local::stream_protocol::endpoint(socket_path_str),ec)) {
                 cerr << "failed" << endl;
                 cerr << ec.message() << endl;
             } else break;
